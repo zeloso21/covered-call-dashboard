@@ -30,6 +30,8 @@ th.active{color:var(--blue);}
 tbody tr{cursor:pointer;}
 tbody tr:hover{background:#f8fafc;}
 tbody tr.sel{background:#eff6ff;}
+@keyframes flashrow{0%{background:#fde68a;}100%{background:#eff6ff;}}
+tbody tr.flash{animation:flashrow .9s ease-out;}
 .pos{color:var(--green);} .neg{color:var(--red);}
 .pres-hi{color:var(--green);font-weight:600;} .pres-lo{color:var(--red);font-weight:600;}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:var(--muted);margin-left:6px;}
@@ -43,6 +45,9 @@ tbody tr.sel{background:#eff6ff;}
 .kpi b{display:block;font-size:17px;color:var(--text);margin-top:2px;}
 .toggle{font-size:12px;color:var(--muted);cursor:pointer;user-select:none;}
 .toggle input{vertical-align:middle;margin-right:4px;}
+.backlink{font-size:12px;color:var(--blue);cursor:pointer;user-select:none;text-decoration:none;white-space:nowrap;}
+.backlink:hover{text-decoration:underline;}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
 .foot{font-size:11px;color:var(--muted);line-height:1.7;padding:4px 2px 20px;}
 </style>
 </head>
@@ -55,8 +60,8 @@ tbody tr.sel{background:#eff6ff;}
 
   <div class="callout" id="callout"></div>
 
-  <div class="card">
-    <h2>종목별 요약 <span style="font-weight:400;color:var(--muted)">— 열 제목을 눌러 정렬, 행을 눌러 아래 차트에서 상세 비교</span></h2>
+  <div class="card" id="listCard">
+    <h2>종목별 요약 <span style="font-weight:400;color:var(--muted)">— 열 제목을 눌러 정렬, 행을 누르면 아래 차트로 이동</span></h2>
     <div class="tbl-wrap">
       <table id="tbl">
         <thead><tr>
@@ -74,8 +79,11 @@ tbody tr.sel{background:#eff6ff;}
     </div>
   </div>
 
-  <div class="card">
-    <div class="selname" id="selName">—</div>
+  <div class="card" id="chartCard">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <div class="selname" id="selName">—</div>
+      <a class="backlink" id="backToList">↑ 목록으로</a>
+    </div>
     <div class="kpis" id="selKpis"></div>
     <div class="grid2">
       <div>
@@ -109,10 +117,15 @@ function init(){
     `월배당 커버드콜 <b>${DATA.etfs.length}종</b>을 "2년 전(또는 상장 직후) 월말에 1억원 일시금 매수, 분배금은 매달 현금으로 인출(재투자 안 함), 세금 미반영" 기준으로 시뮬레이션했습니다. `
     + `같은 기간 <b>KODEX 200은 총 ${PCT(b.total_ret_pct)}</b> 오른 대세 상승장이라, <b>총수익으로는 전 종목이 지수에 크게 뒤집니다</b> — 커버드콜의 목적은 지수 추종이 아니라 <b>원금을 최대한 지키면서 매달 현금흐름</b>을 만드는 것. 아래 표에서 "월배당 / 원금 보존율 / 총수익"을 같이 보고 판단하세요.`;
   document.getElementById('foot').innerHTML =
-    `· 데이터: 한국투자증권 Open API — 분배금(예탁원 배당일정), 월말 종가(월봉). 매월 1일 GitHub Actions로 자동 갱신.<br>`
+    `· 데이터: 한국투자증권 Open API — 분배금(예탁원 배당일정), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
     + `· "월배당(세전·1억당)"은 최근 12개월(또는 보유기간) 실제 분배 실적의 월평균. 배당소득세·수수료·거래비용 미반영.<br>`
     + `· 상장 2년 미만 종목은 상장 직후 첫 완전월부터 계산하므로 보유기간이 서로 다릅니다 — 비교 시 "연환산 총수익"을 함께 볼 것.<br>`
     + `· 커버드콜 ETF는 기초자산이 크게 오를 때 상승을 반납하고, 분배금 일부가 사실상 원금(자본)에서 나올 수 있습니다. 투자 권유 아님, 투자 판단과 책임은 본인.`;
+  document.getElementById('backToList').onclick=()=>{
+    const row=document.querySelector('#tbody tr.sel') || document.getElementById('listCard');
+    (document.getElementById('listCard')).scrollIntoView({behavior:'smooth',block:'start'});
+    row.classList.add('flash'); setTimeout(()=>row.classList.remove('flash'),900);
+  };
   buildCharts(); render();
 }
 
@@ -127,7 +140,10 @@ function render(){
     const s=e.summary;
     const tr=document.createElement('tr');
     tr.className = i===selIdx?'sel':'';
-    tr.onclick=()=>{selIdx=i; render(); updateCharts();};
+    tr.onclick=()=>{
+      selIdx=i; render(); updateCharts();
+      document.getElementById('chartCard').scrollIntoView({behavior:'smooth',block:'start'});
+    };
     const presCls = s.preservation_pct>=100?'pres-hi':s.preservation_pct<90?'pres-lo':'';
     tr.innerHTML =
       `<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`
