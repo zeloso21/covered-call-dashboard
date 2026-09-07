@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>커버드콜 ETF 월배당 비교 · 1억 투자 시뮬레이션</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#f4f6f9; --card:#fff; --header:#0f172a; --text:#1e293b; --muted:#64748b;
+  --border:#e2e8f0; --green:#10b981; --red:#ef4444; --blue:#3b82f6; --amber:#f59e0b;
+  --gap:16px; --r:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
+.wrap{max-width:1240px;margin:0 auto;padding:var(--gap);}
+.hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
+.hdr h1{font-size:18px;font-weight:600;}
+.hdr .sub{font-size:12px;color:rgba(255,255,255,.55);margin-top:4px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:var(--gap);}
+.callout{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:14px 18px;margin-bottom:var(--gap);font-size:13px;color:#78350f;}
+.callout b{color:#92400e;}
+h2{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--header);}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border);}
+th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card);}
+th:first-child,td:first-child{text-align:left;}
+th.active{color:var(--blue);}
+tbody tr{cursor:pointer;}
+tbody tr:hover{background:#f8fafc;}
+tbody tr.sel{background:#eff6ff;}
+.pos{color:var(--green);} .neg{color:var(--red);}
+.pres-hi{color:var(--green);font-weight:600;} .pres-lo{color:var(--red);font-weight:600;}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:var(--muted);margin-left:6px;}
+.chart-box{position:relative;height:320px;margin-top:6px;}
+.chart-box.sm{height:200px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
+@media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+.selname{font-size:15px;font-weight:700;color:var(--header);}
+.kpis{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 4px;}
+.kpi{font-size:12px;color:var(--muted);}
+.kpi b{display:block;font-size:17px;color:var(--text);margin-top:2px;}
+.toggle{font-size:12px;color:var(--muted);cursor:pointer;user-select:none;}
+.toggle input{vertical-align:middle;margin-right:4px;}
+.foot{font-size:11px;color:var(--muted);line-height:1.7;padding:4px 2px 20px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>커버드콜 ETF 월배당 비교 <span style="font-weight:400;font-size:13px;color:rgba(255,255,255,.6)">· 1억 투자 시뮬레이션</span></h1>
+    <div class="sub" id="hdrSub">불러오는 중…</div>
+  </div>
+
+  <div class="callout" id="callout"></div>
+
+  <div class="card">
+    <h2>종목별 요약 <span style="font-weight:400;color:var(--muted)">— 열 제목을 눌러 정렬, 행을 눌러 아래 차트에서 상세 비교</span></h2>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead><tr>
+          <th data-k="name">종목</th>
+          <th data-k="months_held">보유<br>기간</th>
+          <th data-k="avg_monthly_div_12m" class="active">월배당<br>(세전·1억당)</th>
+          <th data-k="income_yield_ann_pct">연 배당<br>수익률</th>
+          <th data-k="preservation_pct">원금(평가액)<br>보존율</th>
+          <th data-k="total_ret_pct">총수익률<br>(평가+배당)</th>
+          <th data-k="total_ret_ann_pct">연환산<br>총수익</th>
+          <th data-k="bench_total_ret_pct">같은 기간<br>KODEX 200</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="selname" id="selName">—</div>
+    <div class="kpis" id="selKpis"></div>
+    <div class="grid2">
+      <div>
+        <h2 style="margin-top:8px">총자산 구성 추이 <span style="font-weight:400;color:var(--muted)">(평가액 + 누적 수령배당)</span>
+          <label class="toggle" style="float:right"><input type="checkbox" id="benchToggle"> KODEX 200 같이 보기</label>
+        </h2>
+        <div class="chart-box"><canvas id="cTotal"></canvas></div>
+      </div>
+      <div>
+        <h2 style="margin-top:8px">월 배당금 추이 <span style="font-weight:400;color:var(--muted)">(1억 투자 기준, 세전)</span></h2>
+        <div class="chart-box"><canvas id="cDiv"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const KRW = n => (n==null?'—':Math.round(n).toLocaleString('ko-KR')+'원');
+const PCT = n => (n==null?'—':(n>0?'+':'')+n.toFixed(1)+'%');
+let DATA, sortKey='avg_monthly_div_12m', sortDir=-1, selIdx=0, chTotal, chDiv;
+
+fetch('data.json').then(r=>r.json()).then(d=>{ DATA=d; init(); });
+
+function init(){
+  const b=DATA.benchmark.summary;
+  document.getElementById('hdrSub').textContent =
+    `${DATA.common_start_month} 기준 · ${DATA.generated} 갱신 · ${DATA.assumptions}`;
+  document.getElementById('callout').innerHTML =
+    `월배당 커버드콜 <b>${DATA.etfs.length}종</b>을 "2년 전(또는 상장 직후) 월말에 1억원 일시금 매수, 분배금은 매달 현금으로 인출(재투자 안 함), 세금 미반영" 기준으로 시뮬레이션했습니다. `
+    + `같은 기간 <b>KODEX 200은 총 ${PCT(b.total_ret_pct)}</b> 오른 대세 상승장이라, <b>총수익으로는 전 종목이 지수에 크게 뒤집니다</b> — 커버드콜의 목적은 지수 추종이 아니라 <b>원금을 최대한 지키면서 매달 현금흐름</b>을 만드는 것. 아래 표에서 "월배당 / 원금 보존율 / 총수익"을 같이 보고 판단하세요.`;
+  document.getElementById('foot').innerHTML =
+    `· 데이터: 한국투자증권 Open API — 분배금(예탁원 배당일정), 월말 종가(월봉). 매월 1일 GitHub Actions로 자동 갱신.<br>`
+    + `· "월배당(세전·1억당)"은 최근 12개월(또는 보유기간) 실제 분배 실적의 월평균. 배당소득세·수수료·거래비용 미반영.<br>`
+    + `· 상장 2년 미만 종목은 상장 직후 첫 완전월부터 계산하므로 보유기간이 서로 다릅니다 — 비교 시 "연환산 총수익"을 함께 볼 것.<br>`
+    + `· 커버드콜 ETF는 기초자산이 크게 오를 때 상승을 반납하고, 분배금 일부가 사실상 원금(자본)에서 나올 수 있습니다. 투자 권유 아님, 투자 판단과 책임은 본인.`;
+  buildCharts(); render();
+}
+
+function render(){
+  const tb=document.getElementById('tbody'); tb.innerHTML='';
+  const rows=DATA.etfs.map((e,i)=>({e,i})).sort((a,b)=>{
+    const va=val(a.e), vb=val(b.e);
+    return (va<vb?-1:va>vb?1:0)*sortDir;
+  });
+  document.querySelectorAll('th').forEach(th=>th.classList.toggle('active',th.dataset.k===sortKey));
+  for(const {e,i} of rows){
+    const s=e.summary;
+    const tr=document.createElement('tr');
+    tr.className = i===selIdx?'sel':'';
+    tr.onclick=()=>{selIdx=i; render(); updateCharts();};
+    const presCls = s.preservation_pct>=100?'pres-hi':s.preservation_pct<90?'pres-lo':'';
+    tr.innerHTML =
+      `<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`
+      +`<td>${s.months_held}개월</td>`
+      +`<td><b>${KRW(s.avg_monthly_div_12m)}</b></td>`
+      +`<td>${s.income_yield_ann_pct.toFixed(1)}%</td>`
+      +`<td class="${presCls}">${s.preservation_pct.toFixed(1)}%</td>`
+      +`<td class="${s.total_ret_pct>=0?'pos':'neg'}">${PCT(s.total_ret_pct)}</td>`
+      +`<td class="${s.total_ret_ann_pct>=0?'pos':'neg'}">${PCT(s.total_ret_ann_pct)}</td>`
+      +`<td class="muted">${PCT(e.bench_total_ret_pct)}</td>`;
+    tb.appendChild(tr);
+  }
+  updateCharts();
+}
+function val(e){
+  if(sortKey==='name') return e.name;
+  return e.summary[sortKey] ?? e[sortKey] ?? -1e9;
+}
+document.querySelectorAll('th').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.k;
+  if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir = k==='name'?1:-1;}
+  render();
+});
+
+function buildCharts(){
+  chTotal=new Chart(document.getElementById('cTotal'),{
+    type:'line',
+    data:{labels:[],datasets:[]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+KRW(c.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>(v/1e8).toFixed(2)+'억'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}}}
+  });
+  chDiv=new Chart(document.getElementById('cDiv'),{
+    type:'bar',
+    data:{labels:[],datasets:[]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>KRW(c.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>(v/1e4).toFixed(0)+'만'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}}}
+  });
+  document.getElementById('benchToggle').onchange=updateCharts;
+}
+
+function updateCharts(){
+  const e=DATA.etfs[selIdx]; if(!e) return;
+  const s=e.summary;
+  document.getElementById('selName').textContent=e.name.replace(/증권.*$/,'');
+  document.getElementById('selKpis').innerHTML =
+    `<div class="kpi">월배당(세전)<b>${KRW(s.avg_monthly_div_12m)}</b></div>`
+    +`<div class="kpi">현재 평가액<b>${KRW(s.nav_now)}</b></div>`
+    +`<div class="kpi">누적 수령배당<b>${KRW(s.cum_div_now)}</b></div>`
+    +`<div class="kpi">총자산<b class="${s.total_ret_pct>=0?'pos':'neg'}">${KRW(s.total_now)} (${PCT(s.total_ret_pct)})</b></div>`
+    +`<div class="kpi">보유기간<b>${s.months_held}개월 (${e.start_month}~)</b></div>`;
+
+  const labels=e.series.map(x=>x.month);
+  const ds=[
+    {label:'평가액(원금)',data:e.series.map(x=>x.nav),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.15)',fill:true,stack:'a',pointRadius:0,borderWidth:1.5},
+    {label:'누적 수령배당',data:e.series.map(x=>x.cum_div),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.25)',fill:true,stack:'a',pointRadius:0,borderWidth:1.5},
+  ];
+  if(document.getElementById('benchToggle').checked){
+    const bser=benchRebased(e.start_month);
+    if(bser) ds.push({label:'KODEX 200 총자산(동일기간)',data:bser,borderColor:'#f59e0b',borderDash:[5,4],fill:false,pointRadius:0,borderWidth:2});
+  }
+  chTotal.data.labels=labels; chTotal.data.datasets=ds;
+  chTotal.options.scales.y.stacked=true;
+  chTotal.update();
+
+  chDiv.data.labels=labels;
+  chDiv.data.datasets=[{data:e.series.map(x=>x.month_div),backgroundColor:'#10b981'}];
+  chDiv.update();
+}
+
+function benchRebased(startMonth){
+  const b=DATA.benchmark.series; if(!b) return null;
+  const i0=b.findIndex(x=>x.month===startMonth); if(i0<0) return null;
+  const base=b[i0].nav, div0=b[i0].cum_div;
+  return b.slice(i0).map(x=> 1e8*(x.nav/base) + (x.cum_div-div0)*(1e8/base) );
+}
+</script>
+</body>
+</html>
