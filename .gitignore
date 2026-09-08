@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+fetch_run.log
+data.json.bak_*

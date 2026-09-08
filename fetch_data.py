@@ -1,32 +1,44 @@
 #!/usr/bin/env python3
 """커버드콜 ETF 월배당 비교 대시보드 데이터 수집.
 
-2년 전 월말에 각 ETF에 1억원을 일시금 매수(buy & hold), 분배금은 현금 수령(재투자 X, 세전).
-매월말 기준: 평가액(자본) / 누적 수령배당(소득) 분리, KODEX 200(069500)과 비교.
+2년 전 월말(또는 상장 직후)에 각 ETF에 1억원을 일시금 매수(buy & hold),
+분배금은 현금 수령(재투자 X, 세전). 매월말 기준: 평가액(자본) / 누적 수령배당(소득)
+분리, KODEX 200(069500)과 비교.
 
-데이터 소스: KIS Open API (모의투자 도메인, paper key)
-  - 분배금: /uapi/domestic-stock/v1/ksdinfo/dividend  (tr_id HHKDB669102C0)
-  - 월말주가: /uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice (tr_id FHKST03010100, M)
+데이터 소스
+  - 커버드콜 ETF 목록: KRX data-dbg  /svc/apis/etp/etf_bydd_trd  (AUTH_KEY 헤더)
+      → 이름에 "커버드콜"이 들어간 전 종목을 여기서 발견한다. (예탁원 배당피드의
+        무필터 조회는 페이지네이션이 사실상 안 돼서 첫 100건만 읽혔고, 종목코드
+        정렬상 커버드콜 ETF가 뒤라 매달 상당수가 누락됐었음 — 2026-09 수정.)
+  - 분배금: KIS  /uapi/domestic-stock/v1/ksdinfo/dividend  (tr_id HHKDB669102C0)
+      → 종목코드(SHT_CD)를 지정하면 24개월 범위를 한 번에 완전하게 돌려준다.
+  - 월말주가: KIS  /uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice
+      (tr_id FHKST03010100, 기간=M, 원주가)
 
-환경변수: KIS_APP_KEY, KIS_APP_SECRET  (GitHub Actions secrets / 로컬 .env)
+환경변수: KIS_APP_KEY, KIS_APP_SECRET, KRX_AUTH_KEY
 """
 import os
-import sys
 import json
 import time
 import datetime
 import requests
 
 KIS_URL = "https://openapivts.koreainvestment.com:29443"
+KRX_URL = "https://data-dbg.krx.co.kr/svc/apis"
 APP = os.environ["KIS_APP_KEY"]
 SEC = os.environ["KIS_APP_SECRET"]
+KRX_KEY = os.environ["KRX_AUTH_KEY"]
 PRINCIPAL = 100_000_000
 LOOKBACK_MONTHS = 24
 BENCH_CODE = "069500"
 BENCH_NAME = "KODEX 200"
 
-# "커버드콜" 이름 필터에 더해, 월배당(최근 6개월 중 5개월+ 분배 실적)인 종목만 남긴다.
 NAME_KEYS = ("커버드콜",)
+# 월배당 판정: 분배를 시작한 뒤의 "완결된 달"(진행 중인 이번 달 제외) 중 이 비율 이상에서
+# 분배 실적이 있어야 한다. 분기배당(≈0.33)·격월(≈0.5)은 자연히 걸러지고, 매달 주는데
+# 한두 달 건너뛴 종목(예: TIGER 200커버드콜 14개월 중 11회)은 통과한다.
+MONTHLY_HIT_RATIO = 0.70
+MIN_DIST = 2  # 최소 분배 횟수 (신규 상장 종목도 몇 달치만 있으면 포함)
 
 
 def _token():
@@ -45,7 +57,7 @@ def _token():
 TOKEN = _token()
 
 
-def _get(path, tr_id, params, tr_cont=""):
+def _kis_get(path, tr_id, params, tr_cont=""):
     h = {"authorization": f"Bearer {TOKEN}", "appkey": APP, "appsecret": SEC,
          "tr_id": tr_id, "custtype": "P", "tr_cont": tr_cont}
     for attempt in range(5):
@@ -57,6 +69,16 @@ def _get(path, tr_id, params, tr_cont=""):
         except requests.exceptions.RequestException as e:
             print(f"  요청 재시도({e})", flush=True); time.sleep(3)
     raise RuntimeError(f"{path} 요청 실패")
+
+
+def _krx_get(path, params):
+    for attempt in range(4):
+        try:
+            r = requests.get(f"{KRX_URL}/{path}", headers={"AUTH_KEY": KRX_KEY}, params=params, timeout=25)
+            return r.json()
+        except requests.exceptions.RequestException as e:
+            print(f"  KRX 재시도({e})", flush=True); time.sleep(3)
+    raise RuntimeError(f"KRX {path} 요청 실패")
 
 
 def month_ends(n):
@@ -72,51 +94,67 @@ def month_ends(n):
     return list(reversed(out))
 
 
-def fetch_all_dividends(months):
-    """기간 전체 분배(배당) 일정을 월별로 조회. {sht_cd: {'name':.., 'by_month': {'YYYY-MM': amount_won}}}"""
-    acc = {}
-    for f_dt, t_dt, ym in months:
-        cts, tr_cont = "", ""
-        for _ in range(20):
-            r = _get("/uapi/domestic-stock/v1/ksdinfo/dividend", "HHKDB669102C0",
-                     {"CTS": cts, "GB1": "0", "F_DT": f_dt, "T_DT": t_dt, "SHT_CD": "", "HIGH_GB": ""}, tr_cont)
-            j = r.json()
-            rows = j.get("output1") or []
-            if not isinstance(rows, list):
-                rows = [rows]
-            for row in rows:
-                name = (row.get("isin_name") or "").strip()
-                code = (row.get("sht_cd") or "").strip()
-                amt = row.get("per_sto_divi_amt")
-                rd = row.get("record_date") or ""
-                if not code or not amt or not str(amt).replace(".", "").isdigit():
-                    continue
-                rec_ym = f"{rd[:4]}-{rd[4:6]}" if len(rd) >= 6 else ym
-                e = acc.setdefault(code, {"name": name, "by_month": {}})
-                if name and not e["name"]:
-                    e["name"] = name
-                e["by_month"][rec_ym] = e["by_month"].get(rec_ym, 0.0) + float(amt)
-            tc = r.headers.get("tr_cont", "")
-            if tc in ("F", "M") and rows:
-                nc = rows[-1].get("CTS") or rows[-1].get("cts") or ""
-                if not nc or nc == cts:
-                    break
-                cts, tr_cont = nc, "N"
-                time.sleep(0.35)
-            else:
-                break
-        time.sleep(0.4)
-    return acc
+def discover_covered_call_etfs():
+    """KRX ETP 일별시세에서 이름에 '커버드콜'이 든 전 종목을 찾는다. {code: name}"""
+    d = datetime.date.today()
+    for _ in range(7):
+        d -= datetime.timedelta(days=1)
+        if d.weekday() >= 5:
+            continue
+        j = _krx_get("etp/etf_bydd_trd", {"basDd": d.strftime("%Y%m%d")})
+        rows = j.get("OutBlock_1") or []
+        if rows:
+            break
+    else:
+        raise RuntimeError("KRX ETF 목록을 못 받음")
+    out = {}
+    for x in rows:
+        nm = (x.get("ISU_NM") or "").strip()
+        cd = (x.get("ISU_CD") or "").strip()
+        if cd and any(k in nm for k in NAME_KEYS):
+            out[cd] = nm
+    return out
+
+
+def fetch_dividends(code, months):
+    """종목코드 지정 분배 이력을 24개월 범위 한 번에 조회. {'YYYY-MM': 주당분배금_합} (record_date 기준)."""
+    f_dt, t_dt = months[0][0], datetime.date.today().strftime("%Y%m%d")
+
+    def _one(f, t):
+        r = _kis_get("/uapi/domestic-stock/v1/ksdinfo/dividend", "HHKDB669102C0",
+                     {"CTS": "", "GB1": "0", "F_DT": f, "T_DT": t, "SHT_CD": code, "HIGH_GB": ""})
+        rows = r.json().get("output1") or []
+        rows = rows if isinstance(rows, list) else [rows]
+        return rows, r.headers.get("tr_cont", "")
+
+    rows, tc = _one(f_dt, t_dt)
+    # 방어: 혹시 한 번에 안 담기면(주당분배 100건↑ = 사실상 없음) 월별로 쪼개 다시.
+    if tc == "F" or len(rows) >= 100:
+        rows = []
+        for f, t, _ in months:
+            r2, _ = _one(f, t)
+            rows.extend(r2)
+            time.sleep(0.15)
+
+    by_month = {}
+    for row in rows:
+        amt = row.get("per_sto_divi_amt")
+        rd = row.get("record_date") or ""
+        if len(rd) < 6 or amt is None or not str(amt).replace(".", "").isdigit():
+            continue
+        ym = f"{rd[:4]}-{rd[4:6]}"
+        by_month[ym] = by_month.get(ym, 0.0) + float(amt)
+    return by_month
 
 
 def fetch_monthly_closes(code, months):
     """월봉 종가. {'YYYY-MM': close_price}  (없으면 빈 dict)"""
     f_dt = months[0][0]
     t_dt = datetime.date.today().strftime("%Y%m%d")
-    r = _get("/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice", "FHKST03010100",
-             {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": code,
-              "FID_INPUT_DATE_1": f_dt, "FID_INPUT_DATE_2": t_dt,
-              "FID_PERIOD_DIV_CODE": "M", "FID_ORG_ADJ_PRC": "1"})
+    r = _kis_get("/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice", "FHKST03010100",
+                 {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": code,
+                  "FID_INPUT_DATE_1": f_dt, "FID_INPUT_DATE_2": t_dt,
+                  "FID_PERIOD_DIV_CODE": "M", "FID_ORG_ADJ_PRC": "1"})
     j = r.json()
     out = {}
     for row in (j.get("output2") or []):
@@ -127,11 +165,21 @@ def fetch_monthly_closes(code, months):
     return out
 
 
-def is_monthly_payer(by_month, months_present):
-    """최근 6개월(또는 상장 후 개월수) 중 80% 이상 분배 실적이면 월배당으로 본다."""
-    recent = [ym for _, _, ym in months_present][-6:]
-    hit = sum(1 for ym in recent if ym in by_month)
-    return len(recent) >= 2 and hit / len(recent) >= 0.8
+def is_monthly_payer(by_month, months):
+    """분배 시작 이후의 '완결된 달'(이번 달 제외) 기준으로 월배당 여부를 본다."""
+    if len(by_month) < MIN_DIST:
+        return False
+    cur_ym = datetime.date.today().strftime("%Y-%m")
+    complete = [ym for _, _, ym in months if ym != cur_ym]
+    first_div = min(by_month)
+    active = [ym for ym in complete if ym >= first_div]
+    if len(active) < 2:
+        # 분배가 2건 이상인데 완결월이 1개 이하 = 이번 달에 몰림 → 다음 달 갱신 때 판정
+        return len(by_month) >= MIN_DIST and len(active) >= 1
+    hit = sum(1 for ym in active if ym in by_month)
+    recent2 = active[-2:]
+    still_active = any(ym in by_month for ym in recent2)
+    return still_active and hit / len(active) >= MONTHLY_HIT_RATIO
 
 
 def simulate(closes, divs_by_month, months, start_ym):
@@ -150,8 +198,7 @@ def simulate(closes, divs_by_month, months, start_ym):
         px = closes.get(ym)
         if px is None:
             continue
-        mdiv_ps = divs_by_month.get(ym, 0.0)
-        month_div = shares * mdiv_ps
+        month_div = shares * divs_by_month.get(ym, 0.0)
         cum_div += month_div
         nav = shares * px
         series.append({
@@ -164,9 +211,22 @@ def simulate(closes, divs_by_month, months, start_ym):
         })
     if len(series) < 2:
         return None
+
+    cur_ym = datetime.date.today().strftime("%Y-%m")
+    complete = [s for s in series if s["month"] != cur_ym]
     last = series[-1]
     yrs = max(len(series) - 1, 1) / 12.0
-    div_events = [s["month_div"] for s in series if s["month_div"] > 0][-12:]
+
+    # 월배당(세전·1억당): "분배를 시작한 달"부터의 완결월(이번 달 제외) 중 최근 12개의
+    # 실제 분배 총액 ÷ 그 개월수 (중간에 분배 0인 달은 포함, 시작 전 0인 달은 제외).
+    pay_ms = [s["month"] for s in series if s["month_div"] > 0]
+    first_pay = pay_ms[0] if pay_ms else (complete[0]["month"] if complete else series[0]["month"])
+    win = [s for s in complete if s["month"] >= first_pay][-12:]
+    if not win:
+        win = complete[-12:] if complete else series[-12:]
+    avg_monthly_div = round(sum(s["month_div"] for s in win) / len(win)) if win else 0
+    pay_months = sum(1 for s in win if s["month_div"] > 0)
+
     total_ret = last["total"] / PRINCIPAL - 1
     nav_ret = last["nav"] / PRINCIPAL - 1
     return {
@@ -184,7 +244,9 @@ def simulate(closes, divs_by_month, months, start_ym):
             "total_ret_ann_pct": round(((1 + total_ret) ** (1 / yrs) - 1) * 100, 2),
             "income_yield_ann_pct": round(last["cum_div"] / PRINCIPAL / yrs * 100, 2),
             "preservation_pct": round(last["nav"] / PRINCIPAL * 100, 2),
-            "avg_monthly_div_12m": round(sum(div_events) / len(div_events)) if div_events else 0,
+            "avg_monthly_div_12m": avg_monthly_div,
+            "pay_months_12m": pay_months,
+            "win_months": len(win),
             "months_held": len(series),
         },
     }
@@ -195,40 +257,37 @@ def main():
     common_start = months[0][2]
     print(f"기간 {months[0][2]} ~ {months[-1][2]}  (일시금 기준월 {common_start})", flush=True)
 
-    print("분배금 일정 수집...", flush=True)
-    all_div = fetch_all_dividends(months)
-    print(f"  전체 분배 종목 {len(all_div)}건", flush=True)
+    universe = discover_covered_call_etfs()
+    print(f"KRX 커버드콜 ETF {len(universe)}종 발견", flush=True)
 
-    # 커버드콜 + 월배당 필터
-    cand = {c: v for c, v in all_div.items() if any(k in v["name"] for k in NAME_KEYS)}
-    targets = {c: v for c, v in cand.items() if is_monthly_payer(v["by_month"], months)}
-    print(f"  커버드콜 {len(cand)}종 → 월배당 {len(targets)}종", flush=True)
-
-    # 벤치마크 분배금(KODEX 200)
-    bench_div = all_div.get(BENCH_CODE, {"by_month": {}})["by_month"]
-
-    print("월말주가 수집...", flush=True)
+    bench_div = fetch_dividends(BENCH_CODE, months)
+    time.sleep(0.3)
     bench_closes = fetch_monthly_closes(BENCH_CODE, months)
-    time.sleep(0.4)
+    time.sleep(0.3)
     bench_sim = simulate(bench_closes, bench_div, months, common_start)
 
+    n_month, n_price = 0, 0
     etfs = []
-    for code, v in sorted(targets.items(), key=lambda kv: kv[1]["name"]):
-        closes = fetch_monthly_closes(code, months)
-        time.sleep(0.4)
-        if not closes:
-            print(f"  [skip] {v['name']} ({code}) 주가 없음", flush=True)
+    for code, name in sorted(universe.items(), key=lambda kv: kv[1]):
+        divs = fetch_dividends(code, months)
+        time.sleep(0.25)
+        if not is_monthly_payer(divs, months):
             continue
-        # 상장 2년 미만이면 첫 완전월부터
+        n_month += 1
+        closes = fetch_monthly_closes(code, months)
+        time.sleep(0.25)
+        if not closes:
+            print(f"  [skip] {name} ({code}) 주가 없음", flush=True)
+            continue
         avail = [ym for _, _, ym in months if ym in closes]
         start_ym = common_start if common_start in closes else (avail[0] if avail else None)
         if not start_ym:
             continue
-        sim = simulate(closes, v["by_month"], months, start_ym)
+        sim = simulate(closes, divs, months, start_ym)
         if not sim:
-            print(f"  [skip] {v['name']} 시뮬 실패", flush=True)
+            print(f"  [skip] {name} 시뮬 실패", flush=True)
             continue
-        # 같은 시작월 기준 KODEX 200 총자산(종목별 기간 맞춘 벤치마크 비교)
+        n_price += 1
         bench_same = simulate(bench_closes, bench_div, months, start_ym)
         sim["bench_total_ret_pct"] = bench_same["summary"]["total_ret_pct"] if bench_same else None
         sim["bench_total_ret_ann_pct"] = bench_same["summary"]["total_ret_ann_pct"] if bench_same else None
@@ -238,12 +297,16 @@ def main():
         )
         etfs.append({
             "code": code,
-            "name": v["name"],
+            "name": name,
             "start_month": start_ym,
             "full_2y": start_ym == common_start,
             **sim,
         })
-        print(f"  ✓ {v['name'][:40]:40} 시작 {start_ym}  총수익 {sim['summary']['total_ret_pct']:+.1f}%  월배당 {sim['summary']['avg_monthly_div_12m']:,}", flush=True)
+        s = sim["summary"]
+        print(f"  ✓ {name[:36]:36} 시작 {start_ym}  총수익 {s['total_ret_pct']:+.1f}%  "
+              f"월배당 {s['avg_monthly_div_12m']:,} ({s['pay_months_12m']}/{s['win_months']})", flush=True)
+
+    print(f"\n커버드콜 {len(universe)}종 → 월배당 {n_month}종 → 시뮬 완료 {len(etfs)}종", flush=True)
 
     out = {
         "generated": datetime.date.today().isoformat(),
@@ -255,7 +318,7 @@ def main():
     }
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"\ndata.json 저장 ({len(etfs)}종 + 벤치마크)", flush=True)
+    print(f"data.json 저장 ({len(etfs)}종 + 벤치마크)", flush=True)
 
 
 if __name__ == "__main__":

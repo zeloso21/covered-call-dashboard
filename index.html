@@ -27,6 +27,9 @@ th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border);}
 th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card);}
 th:first-child,td:first-child{text-align:left;}
 th.active{color:var(--blue);}
+th.active::after{content:'';display:inline-block;width:0;height:0;margin-left:4px;border:4px solid transparent;vertical-align:middle;}
+th.active.desc::after{border-top-color:var(--blue);}
+th.active.asc::after{border-bottom-color:var(--blue);}
 tbody tr{cursor:pointer;}
 tbody tr:hover{background:#f8fafc;}
 tbody tr.sel{background:#eff6ff;}
@@ -67,10 +70,10 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
         <thead><tr>
           <th data-k="name">종목</th>
           <th data-k="months_held">보유<br>기간</th>
-          <th data-k="avg_monthly_div_12m" class="active">월배당<br>(세전·1억당)</th>
+          <th data-k="avg_monthly_div_12m">월배당<br>(세전·1억당)</th>
           <th data-k="income_yield_ann_pct">연 배당<br>수익률</th>
           <th data-k="preservation_pct">원금(평가액)<br>보존율</th>
-          <th data-k="total_ret_pct">총수익률<br>(평가+배당)</th>
+          <th data-k="total_ret_pct" class="active">총수익률<br>(평가+배당)</th>
           <th data-k="total_ret_ann_pct">연환산<br>총수익</th>
           <th data-k="bench_total_ret_pct">같은 기간<br>KODEX 200</th>
         </tr></thead>
@@ -105,7 +108,7 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
 <script>
 const KRW = n => (n==null?'—':Math.round(n).toLocaleString('ko-KR')+'원');
 const PCT = n => (n==null?'—':(n>0?'+':'')+n.toFixed(1)+'%');
-let DATA, sortKey='avg_monthly_div_12m', sortDir=-1, selIdx=0, chTotal, chDiv;
+let DATA, sortKey='total_ret_pct', sortDir=-1, selIdx=0, chTotal, chDiv;
 
 fetch('data.json').then(r=>r.json()).then(d=>{ DATA=d; init(); });
 
@@ -115,10 +118,10 @@ function init(){
     `${DATA.common_start_month} 기준 · ${DATA.generated} 갱신 · ${DATA.assumptions}`;
   document.getElementById('callout').innerHTML =
     `월배당 커버드콜 <b>${DATA.etfs.length}종</b>을 "2년 전(또는 상장 직후) 월말에 1억원 일시금 매수, 분배금은 매달 현금으로 인출(재투자 안 함), 세금 미반영" 기준으로 시뮬레이션했습니다. `
-    + `같은 기간 <b>KODEX 200은 총 ${PCT(b.total_ret_pct)}</b> 오른 대세 상승장이라, <b>총수익으로는 전 종목이 지수에 크게 뒤집니다</b> — 커버드콜의 목적은 지수 추종이 아니라 <b>원금을 최대한 지키면서 매달 현금흐름</b>을 만드는 것. 아래 표에서 "월배당 / 원금 보존율 / 총수익"을 같이 보고 판단하세요.`;
+    + `같은 기간 <b>KODEX 200은 총 ${PCT(b.total_ret_pct)}</b> 오른 대세 상승장이라 <b>총수익으로는 대부분 지수에 못 미칩니다</b>(지수를 이긴 건 소수, 국내 지수형 일부만 근접). 커버드콜의 목적은 지수 추종이 아니라 <b>원금 대비 매달 현금흐름</b>을 만드는 것 — 아래 표에서 "월배당 / 원금 보존율 / 총수익"을 같이 보세요.`;
   document.getElementById('foot').innerHTML =
-    `· 데이터: 한국투자증권 Open API — 분배금(예탁원 배당일정), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
-    + `· "월배당(세전·1억당)"은 최근 12개월(또는 보유기간) 실제 분배 실적의 월평균. 배당소득세·수수료·거래비용 미반영.<br>`
+    `· 데이터: KRX(커버드콜 ETF 전 종목 목록) + 한국투자증권 Open API — 분배금(예탁원 배당일정, 종목별 조회), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
+    + `· "월배당(세전·1억당)"은 최근 12개 완결월(진행 중인 이번 달 제외)의 실제 분배금 총액 ÷ 그 개월수 — 분배가 없던 달도 포함한 평균. "N/M" 태그는 그 중 실제 분배한 달 수로, 조건부(변동성 연동)·비정기 분배 종목은 이 값이 작습니다. 배당소득세·수수료·거래비용 미반영.<br>`
     + `· 상장 2년 미만 종목은 상장 직후 첫 완전월부터 계산하므로 보유기간이 서로 다릅니다 — 비교 시 "연환산 총수익"을 함께 볼 것.<br>`
     + `· 커버드콜 ETF는 기초자산이 크게 오를 때 상승을 반납하고, 분배금 일부가 사실상 원금(자본)에서 나올 수 있습니다. 투자 권유 아님, 투자 판단과 책임은 본인.`;
   document.getElementById('backToList').onclick=()=>{
@@ -135,7 +138,12 @@ function render(){
     const va=val(a.e), vb=val(b.e);
     return (va<vb?-1:va>vb?1:0)*sortDir;
   });
-  document.querySelectorAll('th').forEach(th=>th.classList.toggle('active',th.dataset.k===sortKey));
+  document.querySelectorAll('th').forEach(th=>{
+    const on = th.dataset.k===sortKey;
+    th.classList.toggle('active',on);
+    th.classList.toggle('desc',on && sortDir<0);
+    th.classList.toggle('asc',on && sortDir>0);
+  });
   for(const {e,i} of rows){
     const s=e.summary;
     const tr=document.createElement('tr');
@@ -148,7 +156,7 @@ function render(){
     tr.innerHTML =
       `<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`
       +`<td>${s.months_held}개월</td>`
-      +`<td><b>${KRW(s.avg_monthly_div_12m)}</b></td>`
+      +`<td><b>${KRW(s.avg_monthly_div_12m)}</b>${(s.pay_months_12m!=null && s.win_months && s.pay_months_12m<s.win_months)?' <span class="tag" title="최근 '+s.win_months+'개 완결월 중 실제로 분배한 달 수">'+s.pay_months_12m+'/'+s.win_months+'</span>':''}</td>`
       +`<td>${s.income_yield_ann_pct.toFixed(1)}%</td>`
       +`<td class="${presCls}">${s.preservation_pct.toFixed(1)}%</td>`
       +`<td class="${s.total_ret_pct>=0?'pos':'neg'}">${PCT(s.total_ret_pct)}</td>`
