@@ -239,10 +239,23 @@ def simulate(closes, divs_by_month, months, start_ym):
             w = complete[-n:] if complete else series[-n:]
         return round(sum(s["month_div"] for s in w) / len(w) / shares, 1) if (w and shares) else None
 
+    def _window(n):
+        """최근 n완결월(분배 시작 이후) — 주당배당 합계, 월말주가 합계, 실제 개월수."""
+        w = [s for s in complete if s["month"] >= first_pay][-n:]
+        if not w:
+            w = complete[-n:] if complete else series[-n:]
+        if not (w and shares):
+            return None, None, 0
+        return (round(sum(s["month_div"] for s in w) / shares, 1),
+                round(sum(s["price"] for s in w), 1), len(w))
+
     price_avg_12m = _price_avg(12)
     price_avg_6m = _price_avg(6)
     div_ps_avg_6m = _div_ps_avg(6)
     div_ps_avg_3m = _div_ps_avg(3)
+    # 배당률 = Σ(N개월 주당배당) ÷ Σ(N개월 월말주가)  (사용자 정의). 대략 월배당률.
+    sum_div_ps_3m, sum_price_3m, nmo_3m = _window(3)
+    sum_div_ps_6m, sum_price_6m, nmo_6m = _window(6)
     last_div_row = next((s for s in reversed(complete) if s["month_div"] > 0),
                         next((s for s in reversed(series) if s["month_div"] > 0), None))
     div_ps_last = round(last_div_row["month_div"] / shares, 1) if (last_div_row and shares) else None
@@ -270,6 +283,12 @@ def simulate(closes, divs_by_month, months, start_ym):
             "price_avg_6m": price_avg_6m,
             "div_ps_avg_6m": div_ps_avg_6m,
             "div_ps_avg_3m": div_ps_avg_3m,
+            "sum_div_ps_3m": sum_div_ps_3m,
+            "sum_price_3m": sum_price_3m,
+            "nmo_3m": nmo_3m,
+            "sum_div_ps_6m": sum_div_ps_6m,
+            "sum_price_6m": sum_price_6m,
+            "nmo_6m": nmo_6m,
             "div_ps_last": div_ps_last,
             "div_per_share_month_12m": round(avg_monthly_div / shares, 1) if shares else 0,
             # 매입가 대비 연 배당률 = 최근 12완결월 월평균 분배(0인 달 포함) × 12 ÷ 매입원금.
