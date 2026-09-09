@@ -13,7 +13,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
-.wrap{max-width:1240px;margin:0 auto;padding:var(--gap);}
+.wrap{max-width:1300px;margin:0 auto;padding:var(--gap);}
 .hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
 .hdr h1{font-size:18px;font-weight:600;}
 .hdr .sub{font-size:12px;color:rgba(255,255,255,.55);margin-top:4px;}
@@ -21,6 +21,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',san
 .callout{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:14px 18px;margin-bottom:var(--gap);font-size:13px;color:#78350f;}
 .callout b{color:#92400e;}
 h2{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--header);}
+.colbar{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin:2px 0 12px;font-size:12px;color:var(--muted);}
+.colbar .lbl{font-weight:700;color:var(--text);}
+.colbar label{cursor:pointer;user-select:none;padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:#f8fafc;}
+.colbar label:has(input:checked){background:#eff6ff;border-color:#bfdbfe;color:var(--blue);font-weight:600;}
+.colbar input{vertical-align:middle;margin-right:4px;}
 .tbl-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
 th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border);}
@@ -30,33 +35,24 @@ th.active{color:var(--blue);}
 th.active::after{content:'';display:inline-block;width:0;height:0;margin-left:4px;border:4px solid transparent;vertical-align:middle;}
 th.active.desc::after{border-top-color:var(--blue);}
 th.active.asc::after{border-bottom-color:var(--blue);}
+th.g-buy,td.g-buy{background:#fafaf9;} th.g-avg12,td.g-avg12{background:#f7fafc;} th.g-last,td.g-last{background:#f6fefb;} th.g-won,td.g-won{background:#fdf7fb;}
 tbody tr{cursor:pointer;}
-tbody tr:hover{background:#f8fafc;}
-tbody tr.sel{background:#eff6ff;}
+tbody tr:hover td{background:#f1f5f9;}
+tbody tr.sel td{background:#eff6ff;}
 @keyframes flashrow{0%{background:#fde68a;}100%{background:#eff6ff;}}
-tbody tr.flash{animation:flashrow .9s ease-out;}
+tbody tr.flash td{animation:flashrow .9s ease-out;}
 .pos{color:var(--green);} .neg{color:var(--red);} .muted{color:var(--muted);}
 .pres-hi{color:var(--green);font-weight:600;} .pres-lo{color:var(--red);font-weight:600;}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:var(--muted);margin-left:6px;}
 .chart-box{position:relative;height:320px;margin-top:6px;}
-.chart-box.sm{height:200px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
 @media(max-width:860px){.grid2{grid-template-columns:1fr;}}
 .selname{font-size:15px;font-weight:700;color:var(--header);}
-.kpis{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 4px;}
+.kpis{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 14px;}
 .kpi{font-size:12px;color:var(--muted);}
 .kpi b{display:block;font-size:17px;color:var(--text);margin-top:2px;}
 .toggle{font-size:12px;color:var(--muted);cursor:pointer;user-select:none;}
 .toggle input{vertical-align:middle;margin-right:4px;}
-.projtoggle{display:block;margin:2px 0 10px;font-size:13px;color:var(--text);}
-.projbox{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:14px 16px;margin:0 0 14px;font-size:13px;}
-.projbox .projttl{font-weight:700;color:var(--header);margin-bottom:8px;}
-.projbox table{width:auto;margin:6px 0 10px;font-size:13px;}
-.projbox th,.projbox td{padding:4px 14px 4px 0;text-align:right;border:none;}
-.projbox th:first-child,.projbox td:first-child{text-align:left;color:var(--muted);}
-.projbox thead-row th{color:var(--muted);font-weight:600;}
-.projbox .pline{margin:3px 0;}
-.projbox .pnote{margin-top:9px;font-size:11px;color:#166534;line-height:1.6;}
 .backlink{font-size:12px;color:var(--blue);cursor:pointer;user-select:none;text-decoration:none;white-space:nowrap;}
 .backlink:hover{text-decoration:underline;}
 tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
@@ -74,20 +70,10 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
 
   <div class="card" id="listCard">
     <h2>종목별 요약 <span style="font-weight:400;color:var(--muted)">— 열 제목을 눌러 정렬, 행을 누르면 아래 차트로 이동</span></h2>
+    <div class="colbar" id="colbar"><span class="lbl">표시 컬럼:</span></div>
     <div class="tbl-wrap">
       <table id="tbl">
-        <thead><tr>
-          <th data-k="name">종목</th>
-          <th data-k="months_held">보유<br>기간</th>
-          <th data-k="entry_price">매입단가 / 현재가<br>(주당)</th>
-          <th data-k="avg_monthly_div_12m">월평균 배당<br>(세전·1억당)</th>
-          <th data-k="yoc_ann_pct" title="주당 월평균 분배금 ÷ 매입단가 × 12 — 그때 샀으면 매입가 대비 연 몇 %">매입가 대비<br>연 배당률</th>
-          <th data-k="fwd_yield_ann_pct" title="주당 월평균 분배금 ÷ 현재 주당가 × 12 — 지금 사면 현재가 대비 연 몇 %">현재가 대비<br>연 배당률</th>
-          <th data-k="preservation_pct">원금(평가액)<br>보존율</th>
-          <th data-k="total_ret_pct" class="active">총수익률<br>(평가+배당)</th>
-          <th data-k="total_ret_ann_pct">연환산<br>총수익</th>
-          <th data-k="bench_total_ret_pct">같은 기간<br>KODEX 200</th>
-        </tr></thead>
+        <thead id="thead"></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -99,8 +85,6 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
       <a class="backlink" id="backToList">↑ 목록으로</a>
     </div>
     <div class="kpis" id="selKpis"></div>
-    <label class="toggle projtoggle"><input type="checkbox" id="projToggle"> 💡 지금 1억 매수 시 예상 배당 (현재가·최근 배당 기준 추정)</label>
-    <div class="projbox" id="projBox" hidden></div>
     <div class="grid2">
       <div>
         <h2 style="margin-top:8px">총자산 구성 추이 <span style="font-weight:400;color:var(--muted)">(평가액 + 누적 수령배당)</span>
@@ -121,7 +105,73 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
 <script>
 const KRW = n => (n==null?'—':Math.round(n).toLocaleString('ko-KR')+'원');
 const PCT = n => (n==null?'—':(n>0?'+':'')+n.toFixed(1)+'%');
+const P1  = n => (n==null||isNaN(n)?'—':n.toFixed(1)+'%');
+const WON = n => (n==null||isNaN(n)?'—':Math.round(n).toLocaleString('ko-KR')+'원');
 let DATA, sortKey='total_ret_pct', sortDir=-1, selIdx=0, chTotal, chDiv;
+
+// ── 컬럼 그룹(체크박스) ───────────────────────────────────────
+const GROUPS = [
+  {g:'buy',   label:'매입가 기준',      def:true},
+  {g:'avg12', label:'12개월 평균',      def:false},
+  {g:'last',  label:'최종·현재가 기준', def:true},
+  {g:'won',   label:'지금 1억 배당액',  def:false},
+];
+let colOn = {};
+try{ colOn = JSON.parse(localStorage.getItem('ccdash_cols_v1')) || {}; }catch(e){ colOn = {}; }
+GROUPS.forEach(x=>{ if(colOn[x.g]===undefined) colOn[x.g]=x.def; });
+function saveCols(){ try{ localStorage.setItem('ccdash_cols_v1', JSON.stringify(colOn)); }catch(e){} }
+
+// 12개월 평균 배당률 / 최종 배당률 / 지금 1억 매수 시 연배당(추정)
+const yA = s => (s.price_avg_12m && s.div_per_share_month_12m!=null) ? s.div_per_share_month_12m*12/s.price_avg_12m*100 : null;
+const yL = s => (s.cur_price      && s.div_ps_last!=null)            ? s.div_ps_last*12/s.cur_price*100            : null;
+const nowInc = s => (s.cur_price  && s.div_per_share_month_12m!=null)? s.div_per_share_month_12m*(1e8/s.cur_price)*12 : null;
+
+const COLS = [
+  {k:'name', grp:'always', label:'종목', sort:e=>e.name,
+    cell:(e,s)=>`<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`},
+  {k:'months_held', grp:'always', label:'보유<br>기간', sort:e=>e.summary.months_held,
+    cell:(e,s)=>`<td>${s.months_held}개월</td>`},
+
+  {k:'entry_price', grp:'buy', label:'매입단가<br>(주당)', sort:e=>e.summary.entry_price,
+    cell:(e,s)=>`<td>${WON(s.entry_price)}</td>`},
+  {k:'yoc_ann_pct', grp:'buy', label:'매입가 대비<br>연 배당률',
+    tip:'주당 월평균 분배금 ÷ 매입단가 × 12 — 그때 샀으면 넣은 돈 대비 연 몇 %', sort:e=>e.summary.yoc_ann_pct,
+    cell:(e,s)=>`<td><b>${P1(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct)}</b></td>`},
+
+  {k:'price_avg_12m', grp:'avg12', label:'12개월<br>평균주가', sort:e=>e.summary.price_avg_12m,
+    cell:(e,s)=>`<td>${WON(s.price_avg_12m)}</td>`},
+  {k:'div_avg_12m_ps', grp:'avg12', label:'12개월<br>주당배당(월)', sort:e=>e.summary.div_per_share_month_12m,
+    cell:(e,s)=>`<td>${s.div_per_share_month_12m!=null?s.div_per_share_month_12m.toLocaleString('ko-KR')+'원':'—'}</td>`},
+  {k:'yield_avg_12m', grp:'avg12', label:'12개월평균<br>배당률',
+    tip:'12개월 주당배당 × 12 ÷ 12개월 평균주가', sort:e=>yA(e.summary),
+    cell:(e,s)=>`<td>${P1(yA(s))}</td>`},
+
+  {k:'cur_price', grp:'last', label:'최종주가<br>(현재가)', sort:e=>e.summary.cur_price,
+    cell:(e,s)=>`<td>${WON(s.cur_price)}</td>`},
+  {k:'div_ps_last', grp:'last', label:'최종<br>주당배당', sort:e=>e.summary.div_ps_last,
+    cell:(e,s)=>`<td>${s.div_ps_last!=null?s.div_ps_last.toLocaleString('ko-KR')+'원':'—'}</td>`},
+  {k:'yield_last', grp:'last', label:'최종<br>배당률',
+    tip:'최종 주당배당 × 12 ÷ 현재가 — 지금 사면 현재가 대비 연 몇 %', sort:e=>yL(e.summary),
+    cell:(e,s)=>`<td><b>${P1(yL(s))}</b></td>`},
+
+  {k:'avg_monthly_div_12m', grp:'always', label:'월평균 배당<br>(세전·1억당)', sort:e=>e.summary.avg_monthly_div_12m,
+    cell:(e,s)=>`<td><b>${WON(s.avg_monthly_div_12m)}</b>${(s.pay_months_12m!=null && s.win_months && s.pay_months_12m<s.win_months)?' <span class="tag" title="최근 '+s.win_months+'개 완결월 중 실제로 분배한 달 수">'+s.pay_months_12m+'/'+s.win_months+'</span>':''}</td>`},
+
+  {k:'now_year_income', grp:'won', label:'지금 1억 매수 시<br>연 배당(추정)',
+    tip:'현재가로 1억 매수 시 주수 × (12개월 평균 주당배당 × 12) — 최근 1년 평균 배당이 이어진다는 가정', sort:e=>nowInc(e.summary),
+    cell:(e,s)=>{const v=nowInc(s); return `<td><b>${WON(v)}</b>${v!=null?' <span class="muted">월 '+WON(v/12)+'</span>':''}</td>`;}},
+
+  {k:'preservation_pct', grp:'always', label:'원금(평가액)<br>보존율', sort:e=>e.summary.preservation_pct,
+    cell:(e,s)=>{const c=s.preservation_pct>=100?'pres-hi':s.preservation_pct<90?'pres-lo':''; return `<td class="${c}">${s.preservation_pct.toFixed(1)}%</td>`;}},
+  {k:'total_ret_pct', grp:'always', label:'총수익률<br>(평가+배당)', sort:e=>e.summary.total_ret_pct,
+    cell:(e,s)=>`<td class="${s.total_ret_pct>=0?'pos':'neg'}">${PCT(s.total_ret_pct)}</td>`},
+  {k:'total_ret_ann_pct', grp:'always', label:'연환산<br>총수익', sort:e=>e.summary.total_ret_ann_pct,
+    cell:(e,s)=>`<td class="${s.total_ret_ann_pct>=0?'pos':'neg'}">${PCT(s.total_ret_ann_pct)}</td>`},
+  {k:'bench_total_ret_pct', grp:'always', label:'같은 기간<br>KODEX 200', sort:e=>e.bench_total_ret_pct,
+    cell:(e,s)=>`<td class="muted">${PCT(e.bench_total_ret_pct)}</td>`},
+];
+const grpCls = g => g==='always' ? '' : ' g-'+g;
+const visibleCols = () => COLS.filter(c => c.grp==='always' || colOn[c.grp]);
 
 fetch('data.json').then(r=>r.json()).then(d=>{ DATA=d; init(); });
 
@@ -131,33 +181,61 @@ function init(){
     `${DATA.common_start_month} 기준 · ${DATA.generated} 갱신 · ${DATA.assumptions}`;
   document.getElementById('callout').innerHTML =
     `월배당 커버드콜 <b>${DATA.etfs.length}종</b>을 "2년 전(또는 상장 직후) 월말에 1억원 일시금 매수, 분배금은 매달 현금으로 인출(재투자 안 함), 세금 미반영" 기준으로 시뮬레이션했습니다. `
-    + `같은 기간 <b>KODEX 200은 총 ${PCT(b.total_ret_pct)}</b> 오른 대세 상승장이라 <b>총수익으로는 대부분 지수에 못 미칩니다</b>(지수를 이긴 건 소수, 국내 지수형 일부만 근접). 커버드콜의 목적은 지수 추종이 아니라 <b>원금 대비 매달 현금흐름</b>을 만드는 것 — 아래 표에서 "월평균 배당 / 원금 보존율 / 총수익"을 같이 보세요.`;
+    + `같은 기간 <b>KODEX 200은 총 ${PCT(b.total_ret_pct)}</b> 오른 대세 상승장이라 <b>총수익으로는 대부분 지수에 못 미칩니다</b>. 커버드콜의 목적은 지수 추종이 아니라 <b>원금 대비 매달 현금흐름</b>을 만드는 것 — "표시 컬럼" 체크박스로 <b>매입가 기준 / 12개월 평균 / 최종(현재가) 기준</b> 배당률을 바꿔 볼 수 있습니다.`;
   document.getElementById('foot').innerHTML =
     `· 데이터: KRX(커버드콜 ETF 전 종목 목록) + 한국투자증권 Open API — 분배금(예탁원 배당일정, 종목별 조회), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
-    + `· "월평균 배당(세전·1억당)"은 최근 12개 완결월(진행 중인 이번 달 제외)의 실제 분배금 총액 ÷ 그 개월수 — 분배가 없던 달도 포함한 평균. "N/M" 태그는 그 중 실제 분배한 달 수로, 조건부(변동성 연동)·비정기 분배 종목은 이 값이 작습니다. 배당소득세·수수료·거래비용 미반영.<br>`
-    + `· "매입단가"는 위 기준월 월말 종가, "현재가"는 가장 최근 종가. <b>"매입가 대비 연 배당률" = 주당 월평균 분배금 ÷ 매입단가 × 12</b>(그때 샀으면 넣은 돈 대비 연 몇 %), <b>"현재가 대비 연 배당률" = 주당 월평균 분배금 ÷ 현재 주당가 × 12</b>(지금 새로 사면 연 몇 %). 커버드콜은 가격이 내려오면 현재가 대비 배당률이 올라가 보이지만 그만큼 원금이 줄어든 상태입니다 — "원금 보존율 / 총수익률"을 같이 볼 것.<br>`
-    + `· 상장 2년 미만 종목은 상장 직후 첫 완전월부터 계산하므로 보유기간이 서로 다릅니다 — 비교 시 "연환산 총수익"을 함께 볼 것.<br>`
-    + `· 커버드콜 ETF는 기초자산이 크게 오를 때 상승을 반납하고, 분배금 일부가 사실상 원금(자본)에서 나올 수 있습니다. 투자 권유 아님, 투자 판단과 책임은 본인.`;
+    + `· "월평균 배당(세전·1억당)"은 최근 12개 완결월(진행 중인 이번 달 제외)의 실제 분배금 총액 ÷ 그 개월수 — 분배가 없던 달도 포함한 평균. "N/M" 태그는 그 중 실제 분배한 달 수로, 조건부(변동성 연동)·비정기 분배 종목은 이 값이 작습니다.<br>`
+    + `· <b>매입가 대비 연 배당률</b> = 주당 월평균 분배금 ÷ 매입단가 × 12 (그때 샀으면 넣은 돈 대비). `
+    + `<b>12개월평균 배당률</b> = 12개월 주당배당 × 12 ÷ 12개월 평균주가. `
+    + `<b>최종 배당률</b> = 최종(가장 최근 실제) 주당배당 × 12 ÷ 현재가 (지금 사면 현재가 대비). `
+    + `<b>지금 1억 매수 시 연 배당(추정)</b> = 현재가로 1억어치 산 주수 × 12개월 평균 주당배당 × 12.<br>`
+    + `· 커버드콜은 가격이 내려오면 현재가 기준 배당률이 올라가 보이지만 그만큼 원금이 줄어든 상태입니다 — "원금 보존율 / 총수익률"을 같이 볼 것. 분배금 일부는 사실상 원금(자본)에서 나올 수 있습니다. 배당소득세·수수료 미반영, 투자 권유 아님.<br>`
+    + `· 상장 2년 미만 종목은 상장 직후 첫 완전월부터 계산하므로 보유기간이 서로 다릅니다 — 비교 시 "연환산 총수익"을 함께 볼 것.`;
   document.getElementById('backToList').onclick=()=>{
     const row=document.querySelector('#tbody tr.sel') || document.getElementById('listCard');
-    (document.getElementById('listCard')).scrollIntoView({behavior:'smooth',block:'start'});
+    document.getElementById('listCard').scrollIntoView({behavior:'smooth',block:'start'});
     row.classList.add('flash'); setTimeout(()=>row.classList.remove('flash'),900);
   };
+
+  const cb=document.getElementById('colbar');
+  GROUPS.forEach(x=>{
+    const l=document.createElement('label');
+    l.innerHTML=`<input type="checkbox" data-g="${x.g}"${colOn[x.g]?' checked':''}> ${x.label}`;
+    l.querySelector('input').onchange=ev=>{ colOn[x.g]=ev.target.checked; saveCols(); render(); };
+    cb.appendChild(l);
+  });
+
   buildCharts(); render();
 }
 
 function render(){
-  const tb=document.getElementById('tbody'); tb.innerHTML='';
+  const cols=visibleCols();
+  if(!cols.some(c=>c.k===sortKey)) sortKey='total_ret_pct';
+  const col=cols.find(c=>c.k===sortKey) || cols.find(c=>c.k==='total_ret_pct');
+
+  // thead
+  const thr=document.getElementById('thead');
+  thr.innerHTML='<tr>'+cols.map(c=>{
+    const on=c.k===sortKey;
+    return `<th data-k="${c.k}" class="${on?'active '+(sortDir<0?'desc':'asc'):''}${grpCls(c.grp)}"${c.tip?' title="'+c.tip+'"':''}>${c.label}</th>`;
+  }).join('')+'</tr>';
+  thr.querySelectorAll('th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k;
+    if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir = k==='name'?1:-1; }
+    render();
+  });
+
+  // rows
   const rows=DATA.etfs.map((e,i)=>({e,i})).sort((a,b)=>{
-    const va=val(a.e), vb=val(b.e);
+    let va=col.sort(a.e), vb=col.sort(b.e);
+    if(va==null && vb==null) return 0;
+    if(va==null) return 1;
+    if(vb==null) return -1;
+    if(typeof va==='string') return va.localeCompare(vb)*sortDir;
     return (va<vb?-1:va>vb?1:0)*sortDir;
   });
-  document.querySelectorAll('th').forEach(th=>{
-    const on = th.dataset.k===sortKey;
-    th.classList.toggle('active',on);
-    th.classList.toggle('desc',on && sortDir<0);
-    th.classList.toggle('asc',on && sortDir>0);
-  });
+
+  const tb=document.getElementById('tbody'); tb.innerHTML='';
   for(const {e,i} of rows){
     const s=e.summary;
     const tr=document.createElement('tr');
@@ -166,31 +244,14 @@ function render(){
       selIdx=i; render(); updateCharts();
       document.getElementById('chartCard').scrollIntoView({behavior:'smooth',block:'start'});
     };
-    const presCls = s.preservation_pct>=100?'pres-hi':s.preservation_pct<90?'pres-lo':'';
-    tr.innerHTML =
-      `<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`
-      +`<td>${s.months_held}개월</td>`
-      +`<td>${KRW(s.entry_price)}${s.cur_price!=null?' <span class="muted">/ '+Math.round(s.cur_price).toLocaleString('ko-KR')+'</span>':''}</td>`
-      +`<td><b>${KRW(s.avg_monthly_div_12m)}</b>${s.div_per_share_month_12m!=null?' <span class="tag" title="주당 월평균 분배금(세전)">주당 '+s.div_per_share_month_12m.toLocaleString('ko-KR')+'원</span>':''}${(s.pay_months_12m!=null && s.win_months && s.pay_months_12m<s.win_months)?' <span class="tag" title="최근 '+s.win_months+'개 완결월 중 실제로 분배한 달 수">'+s.pay_months_12m+'/'+s.win_months+'</span>':''}</td>`
-      +`<td><b>${(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct).toFixed(1)}%</b></td>`
-      +`<td><b>${s.fwd_yield_ann_pct!=null?s.fwd_yield_ann_pct.toFixed(1)+'%':'—'}</b></td>`
-      +`<td class="${presCls}">${s.preservation_pct.toFixed(1)}%</td>`
-      +`<td class="${s.total_ret_pct>=0?'pos':'neg'}">${PCT(s.total_ret_pct)}</td>`
-      +`<td class="${s.total_ret_ann_pct>=0?'pos':'neg'}">${PCT(s.total_ret_ann_pct)}</td>`
-      +`<td class="muted">${PCT(e.bench_total_ret_pct)}</td>`;
+    tr.innerHTML = cols.map(c=>{
+      const html=c.cell(e,s);
+      return c.grp==='always' ? html : html.replace('<td','<td class="g-'+c.grp+'"');
+    }).join('');
     tb.appendChild(tr);
   }
   updateCharts();
 }
-function val(e){
-  if(sortKey==='name') return e.name;
-  return e.summary[sortKey] ?? e[sortKey] ?? -1e9;
-}
-document.querySelectorAll('th').forEach(th=>th.onclick=()=>{
-  const k=th.dataset.k;
-  if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir = k==='name'?1:-1;}
-  render();
-});
 
 function buildCharts(){
   chTotal=new Chart(document.getElementById('cTotal'),{
@@ -209,25 +270,22 @@ function buildCharts(){
       scales:{y:{ticks:{callback:v=>(v/1e4).toFixed(0)+'만'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}}}
   });
   document.getElementById('benchToggle').onchange=updateCharts;
-  document.getElementById('projToggle').onchange=()=>renderProj(DATA.etfs[selIdx]);
 }
 
 function updateCharts(){
   const e=DATA.etfs[selIdx]; if(!e) return;
   const s=e.summary;
   document.getElementById('selName').textContent=e.name.replace(/증권.*$/,'');
+  const sharesNow = s.cur_price ? 1e8/s.cur_price : null;
   document.getElementById('selKpis').innerHTML =
-    `<div class="kpi">매입단가(주당)<b>${KRW(s.entry_price)}</b></div>`
-    +`<div class="kpi">현재가(주당)<b>${KRW(s.cur_price)}</b></div>`
-    +`<div class="kpi">월평균 배당(세전)<b>${KRW(s.avg_monthly_div_12m)}${s.div_per_share_month_12m!=null?' · 주당 '+s.div_per_share_month_12m.toLocaleString('ko-KR')+'원':''}</b></div>`
-    +`<div class="kpi">매입가 대비 연 배당률<b>${(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct).toFixed(1)}%</b></div>`
-    +`<div class="kpi">현재가 대비 연 배당률<b>${s.fwd_yield_ann_pct!=null?s.fwd_yield_ann_pct.toFixed(1)+'%':'—'}</b></div>`
-    +`<div class="kpi">현재 평가액<b>${KRW(s.nav_now)}</b></div>`
-    +`<div class="kpi">누적 수령배당<b>${KRW(s.cum_div_now)}</b></div>`
+    `<div class="kpi">매입단가 → 현재가<b>${KRW(s.entry_price)} → ${KRW(s.cur_price)}</b></div>`
+    +`<div class="kpi">주당 월배당 (12M평균 / 최종)<b>${s.div_per_share_month_12m!=null?s.div_per_share_month_12m.toLocaleString('ko-KR')+'원':'—'} / ${s.div_ps_last!=null?s.div_ps_last.toLocaleString('ko-KR')+'원':'—'}</b></div>`
+    +`<div class="kpi">매입가 대비 연 배당률<b>${P1(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct)}</b></div>`
+    +`<div class="kpi">최종 배당률 (현재가 기준)<b>${P1(yL(s))}</b></div>`
+    +`<div class="kpi">지금 1억 매수 시 연 배당(추정)<b>${WON(nowInc(s))}${sharesNow?' · '+Math.floor(sharesNow).toLocaleString('ko-KR')+'주':''}</b></div>`
+    +`<div class="kpi">현재 평가액 / 누적 배당<b>${KRW(s.nav_now)} / ${KRW(s.cum_div_now)}</b></div>`
     +`<div class="kpi">총자산<b class="${s.total_ret_pct>=0?'pos':'neg'}">${KRW(s.total_now)} (${PCT(s.total_ret_pct)})</b></div>`
     +`<div class="kpi">보유기간<b>${s.months_held}개월 (${e.start_month}~)</b></div>`;
-
-  renderProj(e);
 
   const labels=e.series.map(x=>x.month);
   const ds=[
@@ -245,31 +303,6 @@ function updateCharts(){
   chDiv.data.labels=labels;
   chDiv.data.datasets=[{data:e.series.map(x=>x.month_div),backgroundColor:'#10b981'}];
   chDiv.update();
-}
-
-function renderProj(e){
-  const box=document.getElementById('projBox');
-  const on=document.getElementById('projToggle').checked;
-  box.hidden=!on; if(!on) return;
-  const s=e.summary, cur=s.cur_price, dAvg=s.div_per_share_month_12m;
-  if(cur==null || !cur || dAvg==null){ box.hidden=true; return; }
-  const pAvg=s.price_avg_12m, dLast=s.div_ps_last;
-  const sharesNow=1e8/cur;
-  const annAvg=dAvg*12*sharesNow;
-  const annLast=(dLast!=null)? dLast*12*sharesNow : null;
-  const pct=v=>(v/1e8*100).toFixed(1)+'%';
-  const won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
-  box.innerHTML =
-    `<div class="projttl">지금 매수한다면 — 현재가·최근 배당 기준 추정</div>`
-    +`<table><tr class="thead-row"><th></th><th>최근 1년 평균</th><th>최근(최종)</th></tr>`
-    +`<tr><td>주당 가격</td><td>${pAvg!=null?won(pAvg):'—'}</td><td>${won(cur)}</td></tr>`
-    +`<tr><td>주당 월배당(세전)</td><td>${dAvg.toLocaleString('ko-KR')}원</td><td>${dLast!=null?dLast.toLocaleString('ko-KR')+'원':'—'}</td></tr>`
-    +`</table>`
-    +`<div class="pline">지금 <b>1억원</b> → 현재가 ${won(cur)} 기준 <b>약 ${Math.floor(sharesNow).toLocaleString('ko-KR')}주</b> 매수</div>`
-    +`<div class="pline">추정 <b>연 배당 약 ${won(annAvg)}</b> · 월 약 ${won(annAvg/12)} <span class="muted">— 현재가 대비 연 ${pct(annAvg)}, 최근 1년 평균 배당이 이어진다는 가정</span></div>`
-    +(annLast!=null && Math.abs(annLast-annAvg)>annAvg*0.03
-        ? `<div class="pline muted">최근 분배 수준(주당 ${dLast.toLocaleString('ko-KR')}원)이 매달 이어지면 → 연 약 ${won(annLast)} / 연 ${pct(annLast)}</div>` : '')
-    +`<div class="pnote">※ 커버드콜 분배금은 기초자산 흐름·변동성에 따라 매달 크게 달라집니다. 위 숫자는 과거 실적에 기반한 추정일 뿐 미래 배당을 보장하지 않으며, 분배금 일부는 사실상 원금(자본)에서 나올 수 있습니다.</div>`;
 }
 
 function benchRebased(startMonth){
