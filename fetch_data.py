@@ -227,6 +227,13 @@ def simulate(closes, divs_by_month, months, start_ym):
     avg_monthly_div = round(sum(s["month_div"] for s in win) / len(win)) if win else 0
     pay_months = sum(1 for s in win if s["month_div"] > 0)
 
+    # "지금 매수 시" 추정용: 최근 12완결월 주가 평균, 가장 최근 실제 분배월의 주당 분배금.
+    price_win = [s["price"] for s in complete][-12:] or [s["price"] for s in series][-12:]
+    price_avg_12m = round(sum(price_win) / len(price_win), 1) if price_win else None
+    last_div_row = next((s for s in reversed(complete) if s["month_div"] > 0),
+                        next((s for s in reversed(series) if s["month_div"] > 0), None))
+    div_ps_last = round(last_div_row["month_div"] / shares, 1) if (last_div_row and shares) else None
+
     total_ret = last["total"] / PRINCIPAL - 1
     nav_ret = last["nav"] / PRINCIPAL - 1
     return {
@@ -246,6 +253,8 @@ def simulate(closes, divs_by_month, months, start_ym):
             "preservation_pct": round(last["nav"] / PRINCIPAL * 100, 2),
             "entry_price": round(closes[start_ym], 1),
             "cur_price": last["price"],
+            "price_avg_12m": price_avg_12m,
+            "div_ps_last": div_ps_last,
             "div_per_share_month_12m": round(avg_monthly_div / shares, 1) if shares else 0,
             # 매입가 대비 연 배당률 = 최근 12완결월 월평균 분배(0인 달 포함) × 12 ÷ 매입원금.
             # = (주당 월평균 분배 ÷ 매입단가) × 12 와 동일. 상담에서 "그때 사셨으면 매입가 대비 연 N%".

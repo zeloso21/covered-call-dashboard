@@ -48,6 +48,15 @@ tbody tr.flash{animation:flashrow .9s ease-out;}
 .kpi b{display:block;font-size:17px;color:var(--text);margin-top:2px;}
 .toggle{font-size:12px;color:var(--muted);cursor:pointer;user-select:none;}
 .toggle input{vertical-align:middle;margin-right:4px;}
+.projtoggle{display:block;margin:2px 0 10px;font-size:13px;color:var(--text);}
+.projbox{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:14px 16px;margin:0 0 14px;font-size:13px;}
+.projbox .projttl{font-weight:700;color:var(--header);margin-bottom:8px;}
+.projbox table{width:auto;margin:6px 0 10px;font-size:13px;}
+.projbox th,.projbox td{padding:4px 14px 4px 0;text-align:right;border:none;}
+.projbox th:first-child,.projbox td:first-child{text-align:left;color:var(--muted);}
+.projbox thead-row th{color:var(--muted);font-weight:600;}
+.projbox .pline{margin:3px 0;}
+.projbox .pnote{margin-top:9px;font-size:11px;color:#166534;line-height:1.6;}
 .backlink{font-size:12px;color:var(--blue);cursor:pointer;user-select:none;text-decoration:none;white-space:nowrap;}
 .backlink:hover{text-decoration:underline;}
 tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
@@ -90,6 +99,8 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
       <a class="backlink" id="backToList">↑ 목록으로</a>
     </div>
     <div class="kpis" id="selKpis"></div>
+    <label class="toggle projtoggle"><input type="checkbox" id="projToggle"> 💡 지금 1억 매수 시 예상 배당 (현재가·최근 배당 기준 추정)</label>
+    <div class="projbox" id="projBox" hidden></div>
     <div class="grid2">
       <div>
         <h2 style="margin-top:8px">총자산 구성 추이 <span style="font-weight:400;color:var(--muted)">(평가액 + 누적 수령배당)</span>
@@ -198,6 +209,7 @@ function buildCharts(){
       scales:{y:{ticks:{callback:v=>(v/1e4).toFixed(0)+'만'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}}}
   });
   document.getElementById('benchToggle').onchange=updateCharts;
+  document.getElementById('projToggle').onchange=()=>renderProj(DATA.etfs[selIdx]);
 }
 
 function updateCharts(){
@@ -215,6 +227,8 @@ function updateCharts(){
     +`<div class="kpi">총자산<b class="${s.total_ret_pct>=0?'pos':'neg'}">${KRW(s.total_now)} (${PCT(s.total_ret_pct)})</b></div>`
     +`<div class="kpi">보유기간<b>${s.months_held}개월 (${e.start_month}~)</b></div>`;
 
+  renderProj(e);
+
   const labels=e.series.map(x=>x.month);
   const ds=[
     {label:'평가액(원금)',data:e.series.map(x=>x.nav),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.15)',fill:true,stack:'a',pointRadius:0,borderWidth:1.5},
@@ -231,6 +245,31 @@ function updateCharts(){
   chDiv.data.labels=labels;
   chDiv.data.datasets=[{data:e.series.map(x=>x.month_div),backgroundColor:'#10b981'}];
   chDiv.update();
+}
+
+function renderProj(e){
+  const box=document.getElementById('projBox');
+  const on=document.getElementById('projToggle').checked;
+  box.hidden=!on; if(!on) return;
+  const s=e.summary, cur=s.cur_price, dAvg=s.div_per_share_month_12m;
+  if(cur==null || !cur || dAvg==null){ box.hidden=true; return; }
+  const pAvg=s.price_avg_12m, dLast=s.div_ps_last;
+  const sharesNow=1e8/cur;
+  const annAvg=dAvg*12*sharesNow;
+  const annLast=(dLast!=null)? dLast*12*sharesNow : null;
+  const pct=v=>(v/1e8*100).toFixed(1)+'%';
+  const won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
+  box.innerHTML =
+    `<div class="projttl">지금 매수한다면 — 현재가·최근 배당 기준 추정</div>`
+    +`<table><tr class="thead-row"><th></th><th>최근 1년 평균</th><th>최근(최종)</th></tr>`
+    +`<tr><td>주당 가격</td><td>${pAvg!=null?won(pAvg):'—'}</td><td>${won(cur)}</td></tr>`
+    +`<tr><td>주당 월배당(세전)</td><td>${dAvg.toLocaleString('ko-KR')}원</td><td>${dLast!=null?dLast.toLocaleString('ko-KR')+'원':'—'}</td></tr>`
+    +`</table>`
+    +`<div class="pline">지금 <b>1억원</b> → 현재가 ${won(cur)} 기준 <b>약 ${Math.floor(sharesNow).toLocaleString('ko-KR')}주</b> 매수</div>`
+    +`<div class="pline">추정 <b>연 배당 약 ${won(annAvg)}</b> · 월 약 ${won(annAvg/12)} <span class="muted">— 현재가 대비 연 ${pct(annAvg)}, 최근 1년 평균 배당이 이어진다는 가정</span></div>`
+    +(annLast!=null && Math.abs(annLast-annAvg)>annAvg*0.03
+        ? `<div class="pline muted">최근 분배 수준(주당 ${dLast.toLocaleString('ko-KR')}원)이 매달 이어지면 → 연 약 ${won(annLast)} / 연 ${pct(annLast)}</div>` : '')
+    +`<div class="pnote">※ 커버드콜 분배금은 기초자산 흐름·변동성에 따라 매달 크게 달라집니다. 위 숫자는 과거 실적에 기반한 추정일 뿐 미래 배당을 보장하지 않으며, 분배금 일부는 사실상 원금(자본)에서 나올 수 있습니다.</div>`;
 }
 
 function benchRebased(startMonth){
