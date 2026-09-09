@@ -35,7 +35,7 @@ tbody tr:hover{background:#f8fafc;}
 tbody tr.sel{background:#eff6ff;}
 @keyframes flashrow{0%{background:#fde68a;}100%{background:#eff6ff;}}
 tbody tr.flash{animation:flashrow .9s ease-out;}
-.pos{color:var(--green);} .neg{color:var(--red);}
+.pos{color:var(--green);} .neg{color:var(--red);} .muted{color:var(--muted);}
 .pres-hi{color:var(--green);font-weight:600;} .pres-lo{color:var(--red);font-weight:600;}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:var(--muted);margin-left:6px;}
 .chart-box{position:relative;height:320px;margin-top:6px;}
@@ -70,9 +70,10 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
         <thead><tr>
           <th data-k="name">종목</th>
           <th data-k="months_held">보유<br>기간</th>
-          <th data-k="entry_price">매입단가<br>(주당)</th>
+          <th data-k="entry_price">매입단가 / 현재가<br>(주당)</th>
           <th data-k="avg_monthly_div_12m">월평균 배당<br>(세전·1억당)</th>
-          <th data-k="yoc_ann_pct" title="최근 12완결월 월평균 분배 × 12 ÷ 매입원금 = (주당 월평균 분배 ÷ 매입단가) × 12">매입가 대비<br>연 배당률</th>
+          <th data-k="yoc_ann_pct" title="주당 월평균 분배금 ÷ 매입단가 × 12 — 그때 샀으면 매입가 대비 연 몇 %">매입가 대비<br>연 배당률</th>
+          <th data-k="fwd_yield_ann_pct" title="주당 월평균 분배금 ÷ 현재 주당가 × 12 — 지금 사면 현재가 대비 연 몇 %">현재가 대비<br>연 배당률</th>
           <th data-k="preservation_pct">원금(평가액)<br>보존율</th>
           <th data-k="total_ret_pct" class="active">총수익률<br>(평가+배당)</th>
           <th data-k="total_ret_ann_pct">연환산<br>총수익</th>
@@ -123,7 +124,7 @@ function init(){
   document.getElementById('foot').innerHTML =
     `· 데이터: KRX(커버드콜 ETF 전 종목 목록) + 한국투자증권 Open API — 분배금(예탁원 배당일정, 종목별 조회), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
     + `· "월평균 배당(세전·1억당)"은 최근 12개 완결월(진행 중인 이번 달 제외)의 실제 분배금 총액 ÷ 그 개월수 — 분배가 없던 달도 포함한 평균. "N/M" 태그는 그 중 실제 분배한 달 수로, 조건부(변동성 연동)·비정기 분배 종목은 이 값이 작습니다. 배당소득세·수수료·거래비용 미반영.<br>`
-    + `· "매입단가(주당)"는 위 기준월 월말 종가. "매입가 대비 연 배당률"은 <b>(주당 월평균 분배금 ÷ 매입단가) × 12</b> — 그 시점 매입가 기준으로 넣은 돈 대비 연 몇 %가 현금 분배로 나오는지. 현재가가 아니라 매입가 기준이라 매수 후 가격이 움직여도 이 값은 안 바뀝니다.<br>`
+    + `· "매입단가"는 위 기준월 월말 종가, "현재가"는 가장 최근 종가. <b>"매입가 대비 연 배당률" = 주당 월평균 분배금 ÷ 매입단가 × 12</b>(그때 샀으면 넣은 돈 대비 연 몇 %), <b>"현재가 대비 연 배당률" = 주당 월평균 분배금 ÷ 현재 주당가 × 12</b>(지금 새로 사면 연 몇 %). 커버드콜은 가격이 내려오면 현재가 대비 배당률이 올라가 보이지만 그만큼 원금이 줄어든 상태입니다 — "원금 보존율 / 총수익률"을 같이 볼 것.<br>`
     + `· 상장 2년 미만 종목은 상장 직후 첫 완전월부터 계산하므로 보유기간이 서로 다릅니다 — 비교 시 "연환산 총수익"을 함께 볼 것.<br>`
     + `· 커버드콜 ETF는 기초자산이 크게 오를 때 상승을 반납하고, 분배금 일부가 사실상 원금(자본)에서 나올 수 있습니다. 투자 권유 아님, 투자 판단과 책임은 본인.`;
   document.getElementById('backToList').onclick=()=>{
@@ -158,9 +159,10 @@ function render(){
     tr.innerHTML =
       `<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`
       +`<td>${s.months_held}개월</td>`
-      +`<td>${KRW(s.entry_price)}</td>`
+      +`<td>${KRW(s.entry_price)}${s.cur_price!=null?' <span class="muted">/ '+Math.round(s.cur_price).toLocaleString('ko-KR')+'</span>':''}</td>`
       +`<td><b>${KRW(s.avg_monthly_div_12m)}</b>${s.div_per_share_month_12m!=null?' <span class="tag" title="주당 월평균 분배금(세전)">주당 '+s.div_per_share_month_12m.toLocaleString('ko-KR')+'원</span>':''}${(s.pay_months_12m!=null && s.win_months && s.pay_months_12m<s.win_months)?' <span class="tag" title="최근 '+s.win_months+'개 완결월 중 실제로 분배한 달 수">'+s.pay_months_12m+'/'+s.win_months+'</span>':''}</td>`
       +`<td><b>${(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct).toFixed(1)}%</b></td>`
+      +`<td><b>${s.fwd_yield_ann_pct!=null?s.fwd_yield_ann_pct.toFixed(1)+'%':'—'}</b></td>`
       +`<td class="${presCls}">${s.preservation_pct.toFixed(1)}%</td>`
       +`<td class="${s.total_ret_pct>=0?'pos':'neg'}">${PCT(s.total_ret_pct)}</td>`
       +`<td class="${s.total_ret_ann_pct>=0?'pos':'neg'}">${PCT(s.total_ret_ann_pct)}</td>`
@@ -204,8 +206,10 @@ function updateCharts(){
   document.getElementById('selName').textContent=e.name.replace(/증권.*$/,'');
   document.getElementById('selKpis').innerHTML =
     `<div class="kpi">매입단가(주당)<b>${KRW(s.entry_price)}</b></div>`
+    +`<div class="kpi">현재가(주당)<b>${KRW(s.cur_price)}</b></div>`
     +`<div class="kpi">월평균 배당(세전)<b>${KRW(s.avg_monthly_div_12m)}${s.div_per_share_month_12m!=null?' · 주당 '+s.div_per_share_month_12m.toLocaleString('ko-KR')+'원':''}</b></div>`
     +`<div class="kpi">매입가 대비 연 배당률<b>${(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct).toFixed(1)}%</b></div>`
+    +`<div class="kpi">현재가 대비 연 배당률<b>${s.fwd_yield_ann_pct!=null?s.fwd_yield_ann_pct.toFixed(1)+'%':'—'}</b></div>`
     +`<div class="kpi">현재 평가액<b>${KRW(s.nav_now)}</b></div>`
     +`<div class="kpi">누적 수령배당<b>${KRW(s.cum_div_now)}</b></div>`
     +`<div class="kpi">총자산<b class="${s.total_ret_pct>=0?'pos':'neg'}">${KRW(s.total_now)} (${PCT(s.total_ret_pct)})</b></div>`
