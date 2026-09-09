@@ -118,13 +118,13 @@ try{ mode2 = localStorage.getItem('ccdash_mode')==='2'; }catch(e){}
 let sortKey, sortDir;
 
 // ── ② 지금 투자 가정용 파생값 ────────────────────────────────
-// 배당률 = Σ(N개월 주당배당) ÷ Σ(N개월 월말주가). 개월수가 약분되어 대략 "월 배당률".
-// 연 배당률 = 그 값 × 12.
-const yw6  = s => (s.sum_price_6m) ? s.sum_div_ps_6m / s.sum_price_6m * 100 : null;
-const yw3  = s => (s.sum_price_3m) ? s.sum_div_ps_3m / s.sum_price_3m * 100 : null;
+// 월 배당률 = (Σ N개월 주당배당 ÷ N) ÷ 현재가  = 월평균 주당배당 ÷ (지금 살) 주가.
+// 연 배당률 = 월 배당률 × 12.   (div_ps_avg_Nm = Σ ÷ N 이 이미 계산돼 있음)
+const mo6  = s => (s.div_ps_avg_6m!=null && s.cur_price) ? s.div_ps_avg_6m / s.cur_price * 100 : null;
+const mo3  = s => (s.div_ps_avg_3m!=null && s.cur_price) ? s.div_ps_avg_3m / s.cur_price * 100 : null;
 const ann  = v => (v==null ? null : v*12);
 // 지금 1억 매수 시 추정 연 배당액 = 연 배당률(6개월 기준) × 1억
-const estR = s => { const y=yw6(s); return y==null ? null : y/100*12*1e8; };
+const estR = s => { const m=mo6(s); return m==null ? null : m/100*12*1e8; };
 
 // ── 컬럼 정의 (모드별) ───────────────────────────────────────
 const COLS1 = [
@@ -149,21 +149,18 @@ const COLS1 = [
 const COLS2 = [
   {k:'name', label:'종목', sort:e=>e.name, cell:(e,s)=>`<td>${e.name.replace(/증권.*$/,'')}</td>`},
   {k:'cur_price', label:'현재가<br>(주당)', sort:e=>e.summary.cur_price, cell:(e,s)=>`<td>${WON(s.cur_price)}</td>`},
-  {k:'sum_div_ps_6m', label:'6개월 배당금<br>(주당 합계)', tip:'최근 6완결월(분배 시작 이후)에 실제 지급된 주당 분배금 합계',
-    sort:e=>e.summary.sum_div_ps_6m,
-    cell:(e,s)=>`<td>${s.sum_div_ps_6m!=null?s.sum_div_ps_6m.toLocaleString('ko-KR')+'원':'—'}${(s.nmo_6m&&s.nmo_6m<6)?' <span class="tag" title="실제 집계 개월수">'+s.nmo_6m+'개월</span>':''}</td>`},
-  {k:'sum_price_6m', label:'6개월 주가<br>(월말 합계)', tip:'같은 6개월의 월말 종가 합계 — 배당률의 분모', sort:e=>e.summary.sum_price_6m,
-    cell:(e,s)=>`<td class="muted">${WON(s.sum_price_6m)}</td>`},
-  {k:'yw6', label:'6개월 배당률<br>Σ배당÷Σ주가', tip:'Σ(6개월 주당배당) ÷ Σ(6개월 월말주가). 개월수가 약분돼 대략 "월 배당률". 옆 괄호는 ×12 연 환산.',
-    sort:e=>yw6(e.summary), cell:(e,s)=>{const v=yw6(s); return `<td><b>${P1(v)}</b>${v!=null?' <span class="muted">연 '+ann(v).toFixed(0)+'%</span>':''}</td>`;}},
-  {k:'yw3', label:'3개월 배당률<br>Σ배당÷Σ주가', tip:'Σ(3개월 주당배당) ÷ Σ(3개월 월말주가). 최근 흐름. 옆 괄호는 ×12 연 환산.',
-    sort:e=>yw3(e.summary), cell:(e,s)=>{const v=yw3(s); return `<td>${P1(v)}${v!=null?' <span class="muted">연 '+ann(v).toFixed(0)+'%</span>':''}</td>`;}},
-  {k:'estR', label:'지금 1억 매수 시<br>추정 연 배당', tip:'6개월 배당률 × 12 × 1억원 (= Σ6개월배당 ÷ Σ6개월주가 × 12 × 1억)', sort:e=>estR(e.summary),
+  {k:'sum_div_ps_6m', label:'6개월 배당금<br>(주당 Σ · 월평균)', tip:'최근 6완결월 주당 분배금 합계 (÷6 = 월평균)', sort:e=>e.summary.sum_div_ps_6m,
+    cell:(e,s)=>`<td>${s.sum_div_ps_6m!=null?s.sum_div_ps_6m.toLocaleString('ko-KR')+'원':'—'}${s.div_ps_avg_6m!=null?' <span class="muted">월 '+s.div_ps_avg_6m.toLocaleString('ko-KR')+'원</span>':''}${(s.nmo_6m&&s.nmo_6m<6)?' <span class="tag" title="실제 집계 개월수">'+s.nmo_6m+'M</span>':''}</td>`},
+  {k:'mo6', label:'배당률<br>(6개월 기준)', tip:'6개월 월평균 주당배당 ÷ 현재가 = 월 배당률. 괄호 = ×12 연 배당률.', sort:e=>mo6(e.summary),
+    cell:(e,s)=>{const v=mo6(s); return `<td><b>${v!=null?v.toFixed(2)+'%':'—'}</b>${v!=null?' <span class="muted">연 '+ann(v).toFixed(0)+'%</span>':''}</td>`;}},
+  {k:'mo3', label:'배당률<br>(3개월 기준)', tip:'최근 3개월 월평균 주당배당 ÷ 현재가 = 월 배당률. 괄호 = ×12 연 배당률.', sort:e=>mo3(e.summary),
+    cell:(e,s)=>{const v=mo3(s); return `<td>${v!=null?v.toFixed(2)+'%':'—'}${v!=null?' <span class="muted">연 '+ann(v).toFixed(0)+'%</span>':''}</td>`;}},
+  {k:'estR', label:'지금 1억 매수 시<br>추정 연 배당', tip:'연 배당률(6개월 기준) × 1억원', sort:e=>estR(e.summary),
     cell:(e,s)=>{const v=estR(s); return `<td><b>${N0(v)}</b>${v!=null?' <span class="muted">월 '+N0(v/12)+'</span>':''}</td>`;}},
 ];
 
 const modeCfg = () => mode2
-  ? {cols:COLS2, defSort:['yw6',-1], hint:'※ 지금 현재가로 1억원을 새로 매수한다고 가정. 배당률 = Σ(N개월 주당배당) ÷ Σ(N개월 월말주가) — 대략 "월 배당률", 괄호 안이 ×12 연 환산. 커버드콜 분배금엔 원금(자본) 반환분이 크게 섞여 있어 배당률이 일반 주식·채권보다 훨씬 높습니다 — 총수익·원금 보존율은 ① 모드에서 확인. 행 클릭 상세 차트도 ① 전용.'}
+  ? {cols:COLS2, defSort:['mo6',-1], hint:'※ 지금 현재가로 1억원을 새로 매수한다고 가정. 배당률 = (최근 N개월 주당배당 합 ÷ N) ÷ 현재가 = 월평균 주당배당 ÷ 지금 주가 → "월 배당률", 괄호가 ×12 연 배당률. 커버드콜은 분배금에 원금 반환분이 섞여 있어 배당률이 높습니다 — 순수익은 ① 모드의 총수익률·원금 보존율로 판단. 행 클릭 상세 차트는 ① 전용.'}
   : {cols:COLS1, defSort:['total_ret_pct',-1], hint:'※ 2년 전(또는 상장 직후) 월말에 1억원 일시금 매수·보유 기준. 행을 누르면 아래에 평가액·배당 추이 차트가 나옵니다.'};
 
 fetch('data.json').then(r=>r.json()).then(d=>{ DATA=d; init(); });
@@ -175,12 +172,12 @@ function init(){
   document.getElementById('callout').innerHTML =
     `월배당 커버드콜 <b>${DATA.etfs.length}종</b>. 위 체크박스로 두 관점을 오갑니다 — `
     + `<b>① 최초 투자 대비</b>: 2년 전(또는 상장 직후) 1억을 넣었을 때 지금까지의 성과(평가액·누적배당·총수익, KODEX 200은 총 ${PCT(b.total_ret_pct)}). `
-    + `<b>② 지금 투자 가정</b>: 오늘 현재가로 1억을 새로 넣으면 배당이 얼마나 나올지 — 배당률 = Σ배당 ÷ Σ주가.`;
+    + `<b>② 지금 투자 가정</b>: 오늘 현재가로 1억을 새로 넣으면 배당이 얼마나 나올지 — 연 배당률 = (최근 N개월 월평균 주당배당) ÷ 현재가 × 12.`;
   document.getElementById('foot').innerHTML =
     `· 데이터: KRX(커버드콜 ETF 전 종목 목록) + 한국투자증권 Open API — 분배금(예탁원 배당일정, 종목별 조회), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
     + `· <b>① 최초 투자 대비</b> — "월평균 배당(1억당)"은 최근 12완결월 실제 분배 총액 ÷ 개월수(0인 달 포함). "매입가 대비 연 배당률" = 주당 월평균 분배금 ÷ 매입단가 × 12. "N/M" 태그 = 그 중 실제 분배한 달 수(조건부·비정기 분배 종목은 작음).<br>`
-    + `· <b>② 지금 투자 가정</b> — <b>배당률 = Σ(N개월 주당배당) ÷ Σ(N개월 월말주가)</b>. 6개월치 배당을 다 더하고 그 6개월 월말주가를 다 더해서 나눕니다(개월수가 약분돼 대략 "월 배당률"이 되고, 옆 괄호가 ×12 연 환산). "6개월 배당금(주당 합계)"이 분자, "6개월 주가(월말 합계)"가 분모. 3개월 배당률은 같은 방식으로 최근 3개월. "지금 1억 매수 시 추정 연 배당" = 6개월 배당률 × 12 × 1억.<br>`
-    + `· ② 모드 연 환산 배당률이 20~40%로 높은 건 계산 오류가 아니라, 커버드콜 ETF가 옵션 프리미엄에 더해 <b>원금(자본)의 일부를 분배금으로 돌려주기 때문</b>입니다 — 실제 순수익은 ① 모드의 "총수익률 / 원금 보존율"로 판단하세요.<br>`
+    + `· <b>② 지금 투자 가정</b> — <b>연 배당률 = (최근 N개월 주당배당 합 ÷ N) ÷ 현재가 × 12</b> (= 연간 배당금 ÷ 지금 주가). "6개월 배당금(주당 Σ·월평균)"에서 Σ는 6개월 합, 월평균은 ÷6. 그 월평균을 현재가로 나눈 게 "월 배당률", ×12가 "연". 3개월 기준은 같은 방식으로 최근 3개월. "지금 1억 매수 시 추정 연 배당" = 연 배당률(6개월 기준) × 1억.<br>`
+    + `· ② 모드 연 배당률이 20~40%로 높은 건 계산 오류가 아니라, 커버드콜 ETF가 옵션 프리미엄에 더해 <b>원금(자본)의 일부를 분배금으로 돌려주기 때문</b>입니다 — 실제 순수익은 ① 모드의 "총수익률 / 원금 보존율"로 판단하세요.<br>`
     + `· 커버드콜은 가격이 내려오면 배당률이 높아 보이지만 그만큼 원금이 줄어든 상태이고, 분배금 일부는 사실상 원금(자본)에서 나올 수 있습니다. 배당은 기초자산·변동성에 따라 매달 달라지며 위 숫자는 과거 실적 기반 추정일 뿐 미래를 보장하지 않습니다. 배당소득세·수수료 미반영, 투자 권유 아님.`;
   document.getElementById('backToList').onclick=()=>{
     const row=document.querySelector('#tbody tr.sel') || document.getElementById('listCard');
