@@ -244,6 +244,11 @@ def simulate(closes, divs_by_month, months, start_ym):
             "total_ret_ann_pct": round(((1 + total_ret) ** (1 / yrs) - 1) * 100, 2),
             "income_yield_ann_pct": round(last["cum_div"] / PRINCIPAL / yrs * 100, 2),
             "preservation_pct": round(last["nav"] / PRINCIPAL * 100, 2),
+            "entry_price": round(closes[start_ym], 1),
+            "div_per_share_month_12m": round(avg_monthly_div / shares, 1) if shares else 0,
+            # 매입가 대비 연 배당률 = 최근 12완결월 월평균 분배(0인 달 포함) × 12 ÷ 매입원금.
+            # = (주당 월평균 분배 ÷ 매입단가) × 12 와 동일. 상담에서 "매입가 대비 연 N%" 로 인용하는 값.
+            "yoc_ann_pct": round(avg_monthly_div * 12 / PRINCIPAL * 100, 2),
             "avg_monthly_div_12m": avg_monthly_div,
             "pay_months_12m": pay_months,
             "win_months": len(win),
