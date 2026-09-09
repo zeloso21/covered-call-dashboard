@@ -119,8 +119,9 @@ let sortKey, sortDir;
 
 // ── ② 지금 투자 가정용 파생값 ────────────────────────────────
 const y6   = s => (s.price_avg_6m && s.div_ps_avg_6m!=null) ? s.div_ps_avg_6m*12/s.price_avg_6m*100 : null;
-const yL   = s => (s.cur_price     && s.div_ps_last!=null)   ? s.div_ps_last*12/s.cur_price*100       : null;
-const est6 = s => (s.cur_price     && s.div_ps_avg_6m!=null) ? s.div_ps_avg_6m*(1e8/s.cur_price)*12   : null;
+// 최근 배당률/추정: 단일 최종월(스파이크에 취약)이 아니라 최근 3완결월 평균 주당배당 기준.
+const yR   = s => (s.cur_price && s.div_ps_avg_3m!=null) ? s.div_ps_avg_3m*12/s.cur_price*100     : null;
+const estR = s => (s.cur_price && s.div_ps_avg_3m!=null) ? s.div_ps_avg_3m*(1e8/s.cur_price)*12   : null;
 
 // ── 컬럼 정의 (모드별) ───────────────────────────────────────
 const COLS1 = [
@@ -149,17 +150,17 @@ const COLS2 = [
     cell:(e,s)=>`<td>${s.div_ps_avg_6m!=null?s.div_ps_avg_6m.toLocaleString('ko-KR')+'원':'—'}</td>`},
   {k:'y6', label:'6개월평균<br>배당률', tip:'6개월 평균 주당배당 × 12 ÷ 6개월 평균주가', sort:e=>y6(e.summary),
     cell:(e,s)=>`<td>${P1(y6(s))}</td>`},
-  {k:'cur_price', label:'최종<br>현재가', sort:e=>e.summary.cur_price, cell:(e,s)=>`<td>${WON(s.cur_price)}</td>`},
-  {k:'div_ps_last', label:'최종<br>주당배당', sort:e=>e.summary.div_ps_last,
-    cell:(e,s)=>`<td>${s.div_ps_last!=null?s.div_ps_last.toLocaleString('ko-KR')+'원':'—'}</td>`},
-  {k:'yL', label:'최종<br>배당률', tip:'최종(가장 최근 실제) 주당배당 × 12 ÷ 현재가', sort:e=>yL(e.summary),
-    cell:(e,s)=>`<td><b>${P1(yL(s))}</b></td>`},
-  {k:'est6', label:'지금 1억 매수 시<br>추정 연 배당', tip:'현재가로 1억 매수 시 주수 × (6개월 평균 주당배당 × 12)', sort:e=>est6(e.summary),
-    cell:(e,s)=>{const v=est6(s); return `<td><b>${N0(v)}</b>${v!=null?' <span class="muted">월 '+N0(v/12)+'</span>':''}</td>`;}},
+  {k:'cur_price', label:'현재가<br>(주당)', sort:e=>e.summary.cur_price, cell:(e,s)=>`<td>${WON(s.cur_price)}</td>`},
+  {k:'div_ps_last', label:'최종<br>주당배당', tip:'가장 최근 실제 분배월의 주당 분배금(단일 월 — 참고용)', sort:e=>e.summary.div_ps_last,
+    cell:(e,s)=>`<td class="muted">${s.div_ps_last!=null?s.div_ps_last.toLocaleString('ko-KR')+'원':'—'}</td>`},
+  {k:'yR', label:'최근 배당률<br>(3개월 기준)', tip:'최근 3완결월 평균 주당배당 × 12 ÷ 현재가 — 단일 최종월은 스파이크에 취약해 3개월 평균 사용', sort:e=>yR(e.summary),
+    cell:(e,s)=>`<td><b>${P1(yR(s))}</b></td>`},
+  {k:'estR', label:'지금 1억 매수 시<br>추정 연 배당', tip:'현재가로 1억 매수 시 주수 × (최근 3개월 평균 주당배당 × 12)', sort:e=>estR(e.summary),
+    cell:(e,s)=>{const v=estR(s); return `<td><b>${N0(v)}</b>${v!=null?' <span class="muted">월 '+N0(v/12)+'</span>':''}</td>`;}},
 ];
 
 const modeCfg = () => mode2
-  ? {cols:COLS2, defSort:['yL',-1], hint:'※ 지금 현재가로 1억원을 새로 매수한다고 가정 — 6개월 평균/최종 주당배당으로 향후 배당을 추정합니다. 행 클릭 시 상세 차트는 ① 모드에서만 제공됩니다.'}
+  ? {cols:COLS2, defSort:['yR',-1], hint:'※ 지금 현재가로 1억원을 새로 매수한다고 가정 — 6개월 평균 / 최근 3개월 평균 배당으로 향후 배당을 추정합니다(단일 최종월은 들쭉날쭉해서 평균 사용). 행 클릭 시 상세 차트는 ① 모드에서만 제공됩니다.'}
   : {cols:COLS1, defSort:['total_ret_pct',-1], hint:'※ 2년 전(또는 상장 직후) 월말에 1억원 일시금 매수·보유 기준. 행을 누르면 아래에 평가액·배당 추이 차트가 나옵니다.'};
 
 fetch('data.json').then(r=>r.json()).then(d=>{ DATA=d; init(); });
@@ -171,11 +172,11 @@ function init(){
   document.getElementById('callout').innerHTML =
     `월배당 커버드콜 <b>${DATA.etfs.length}종</b>. 위 체크박스로 두 관점을 오갑니다 — `
     + `<b>① 최초 투자 대비</b>: 2년 전(또는 상장 직후) 1억을 넣었을 때 지금까지의 성과(평가액·누적배당·총수익, KODEX 200은 총 ${PCT(b.total_ret_pct)}). `
-    + `<b>② 지금 투자 가정</b>: 오늘 현재가로 1억을 새로 넣으면 6개월 평균/최종 배당 기준으로 배당이 얼마나 나올지 추정.`;
+    + `<b>② 지금 투자 가정</b>: 오늘 현재가로 1억을 새로 넣으면 6개월·최근 3개월 평균 배당 기준으로 배당이 얼마나 나올지 추정.`;
   document.getElementById('foot').innerHTML =
     `· 데이터: KRX(커버드콜 ETF 전 종목 목록) + 한국투자증권 Open API — 분배금(예탁원 배당일정, 종목별 조회), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
     + `· <b>① 최초 투자 대비</b> — "월평균 배당(1억당)"은 최근 12완결월 실제 분배 총액 ÷ 개월수(0인 달 포함). "매입가 대비 연 배당률" = 주당 월평균 분배금 ÷ 매입단가 × 12. "N/M" 태그 = 그 중 실제 분배한 달 수(조건부·비정기 분배 종목은 작음).<br>`
-    + `· <b>② 지금 투자 가정</b> — "6개월 평균주가/평균 주당배당"은 최근 6완결월 평균, "6개월평균 배당률" = 6M 주당배당 × 12 ÷ 6M 평균주가. "최종 주당배당"은 가장 최근 실제 분배월 값, "최종 배당률" = 최종 주당배당 × 12 ÷ 현재가. "지금 1억 매수 시 추정 연 배당" = 현재가로 산 주수 × 6M 평균 주당배당 × 12.<br>`
+    + `· <b>② 지금 투자 가정</b> — "6개월 평균주가/평균 주당배당"은 최근 6완결월 평균, "6개월평균 배당률" = 6M 주당배당 × 12 ÷ 6M 평균주가. "최종 주당배당"은 가장 최근 실제 분배월 값(단일 월, 참고용). "최근 배당률" = <b>최근 3완결월 평균</b> 주당배당 × 12 ÷ 현재가 (단일 최종월은 스파이크에 취약해 3개월 평균 사용). "지금 1억 매수 시 추정 연 배당" = 현재가로 산 주수 × 최근 3개월 평균 주당배당 × 12.<br>`
     + `· 커버드콜은 가격이 내려오면 배당률이 높아 보이지만 그만큼 원금이 줄어든 상태이고, 분배금 일부는 사실상 원금(자본)에서 나올 수 있습니다. 배당은 기초자산·변동성에 따라 매달 달라지며 위 숫자는 과거 실적 기반 추정일 뿐 미래를 보장하지 않습니다. 배당소득세·수수료 미반영, 투자 권유 아님.`;
   document.getElementById('backToList').onclick=()=>{
     const row=document.querySelector('#tbody tr.sel') || document.getElementById('listCard');

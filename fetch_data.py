@@ -242,6 +242,7 @@ def simulate(closes, divs_by_month, months, start_ym):
     price_avg_12m = _price_avg(12)
     price_avg_6m = _price_avg(6)
     div_ps_avg_6m = _div_ps_avg(6)
+    div_ps_avg_3m = _div_ps_avg(3)
     last_div_row = next((s for s in reversed(complete) if s["month_div"] > 0),
                         next((s for s in reversed(series) if s["month_div"] > 0), None))
     div_ps_last = round(last_div_row["month_div"] / shares, 1) if (last_div_row and shares) else None
@@ -268,6 +269,7 @@ def simulate(closes, divs_by_month, months, start_ym):
             "price_avg_12m": price_avg_12m,
             "price_avg_6m": price_avg_6m,
             "div_ps_avg_6m": div_ps_avg_6m,
+            "div_ps_avg_3m": div_ps_avg_3m,
             "div_ps_last": div_ps_last,
             "div_per_share_month_12m": round(avg_monthly_div / shares, 1) if shares else 0,
             # 매입가 대비 연 배당률 = 최근 12완결월 월평균 분배(0인 달 포함) × 12 ÷ 매입원금.
