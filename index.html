@@ -3,76 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>커버드콜 ETF 월배당 비교 · 1억 투자 시뮬레이션</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<title>커버드콜 ETF 월배당 정보</title>
 <style>
 :root{
   --bg:#f4f6f9; --card:#fff; --header:#0f172a; --text:#1e293b; --muted:#64748b;
-  --border:#e2e8f0; --green:#10b981; --red:#ef4444; --blue:#3b82f6; --amber:#f59e0b;
+  --border:#e2e8f0; --blue:#3b82f6; --blue-soft:#dbeafe;
   --gap:16px; --r:10px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
-.wrap{max-width:1260px;margin:0 auto;padding:var(--gap);}
+.wrap{max-width:980px;margin:0 auto;padding:var(--gap);}
 .hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
 .hdr h1{font-size:18px;font-weight:600;}
-.hdr .sub{font-size:12px;color:rgba(255,255,255,.55);margin-top:4px;}
+.hdr .sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:6px;line-height:1.6;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:var(--gap);}
-.callout{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:14px 18px;margin-bottom:var(--gap);font-size:13px;color:#78350f;}
-.callout b{color:#92400e;}
-h2{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--header);}
-.modebar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;}
-.modebar label{cursor:pointer;user-select:none;padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:#f8fafc;font-size:13px;line-height:1.3;}
-.modebar label small{display:block;color:var(--muted);font-size:11px;font-weight:400;margin-top:1px;}
-.modebar label:has(input:checked){background:#eff6ff;border-color:#93c5fd;color:var(--blue);font-weight:700;}
-.modebar input{vertical-align:middle;margin-right:6px;}
+.hint{font-size:12px;color:var(--muted);margin:0 0 14px;}
 .tbl-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
-th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
 th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card);}
-th:first-child,td:first-child{text-align:left;}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:150px;}
 th.active{color:var(--blue);}
 th.active::after{content:'';display:inline-block;width:0;height:0;margin-left:4px;border:4px solid transparent;vertical-align:middle;}
 th.active.desc::after{border-top-color:var(--blue);}
 th.active.asc::after{border-bottom-color:var(--blue);}
-tbody tr.clk{cursor:pointer;}
-tbody tr.clk:hover td{background:#f1f5f9;}
-tbody tr.sel td{background:#eff6ff;}
-@keyframes flashrow{0%{background:#fde68a;}100%{background:#eff6ff;}}
-tbody tr.flash td{animation:flashrow .9s ease-out;}
-.pos{color:var(--green);} .neg{color:var(--red);} .muted{color:var(--muted);}
-.pres-hi{color:var(--green);font-weight:600;} .pres-lo{color:var(--red);font-weight:600;}
-.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f1f5f9;color:var(--muted);margin-left:6px;}
-.chart-box{position:relative;height:320px;margin-top:6px;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
-@media(max-width:860px){.grid2{grid-template-columns:1fr;}}
-.selname{font-size:15px;font-weight:700;color:var(--header);}
-.kpis{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 14px;}
-.kpi{font-size:12px;color:var(--muted);}
-.kpi b{display:block;font-size:17px;color:var(--text);margin-top:2px;}
-.toggle{font-size:12px;color:var(--muted);cursor:pointer;user-select:none;}
-.toggle input{vertical-align:middle;margin-right:4px;}
-.backlink{font-size:12px;color:var(--blue);cursor:pointer;user-select:none;text-decoration:none;white-space:nowrap;}
-.backlink:hover{text-decoration:underline;}
-tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
-.hint{font-size:12px;color:var(--muted);margin:-4px 0 10px;}
+.yield{font-weight:700;color:var(--blue);}
+.spark{display:inline-flex;align-items:flex-end;gap:2px;height:28px;vertical-align:middle;}
+.spark i{display:inline-block;width:7px;background:var(--blue);border-radius:2px 2px 0 0;min-height:2px;}
+.spark i.zero{background:var(--border);}
+.month-td{text-align:left;min-width:190px;}
 .foot{font-size:11px;color:var(--muted);line-height:1.7;padding:4px 2px 20px;}
+@media(max-width:640px){.wrap{padding:12px;} .hdr{padding:16px 18px;}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="hdr">
-    <h1>커버드콜 ETF 월배당 비교 <span style="font-weight:400;font-size:13px;color:rgba(255,255,255,.6)">· 1억 투자 시뮬레이션</span></h1>
+    <h1>커버드콜 ETF 월배당 정보</h1>
     <div class="sub" id="hdrSub">불러오는 중…</div>
   </div>
 
-  <div class="callout" id="callout"></div>
-
-  <div class="card" id="listCard">
-    <div class="modebar" id="modebar">
-      <label><input type="checkbox" id="modeChk"> <span id="modeLbl"></span><small id="modeSub"></small></label>
-    </div>
-    <div class="hint" id="listHint"></div>
+  <div class="card">
+    <div class="hint">표 머리글을 클릭하면 정렬 기준이 바뀝니다. 배당 막대에 마우스를 올리면 해당 월 금액이 표시됩니다.</div>
     <div class="tbl-wrap">
       <table id="tbl">
         <thead id="thead"></thead>
@@ -81,219 +53,84 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
     </div>
   </div>
 
-  <div class="card" id="chartCard">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
-      <div class="selname" id="selName">—</div>
-      <a class="backlink" id="backToList">↑ 목록으로</a>
-    </div>
-    <div class="kpis" id="selKpis"></div>
-    <div class="grid2">
-      <div>
-        <h2 style="margin-top:8px">총자산 구성 추이 <span style="font-weight:400;color:var(--muted)">(평가액 + 누적 수령배당)</span>
-          <label class="toggle" style="float:right"><input type="checkbox" id="benchToggle"> KODEX 200 같이 보기</label>
-        </h2>
-        <div class="chart-box"><canvas id="cTotal"></canvas></div>
-      </div>
-      <div>
-        <h2 style="margin-top:8px">월 배당금 추이 <span style="font-weight:400;color:var(--muted)">(1억 투자 기준, 세전)</span></h2>
-        <div class="chart-box"><canvas id="cDiv"></canvas></div>
-      </div>
-    </div>
-  </div>
-
   <div class="foot" id="foot"></div>
 </div>
 
 <script>
-const KRW = n => (n==null?'—':Math.round(n).toLocaleString('ko-KR')+'원');
-const PCT = n => (n==null?'—':(n>0?'+':'')+n.toFixed(1)+'%');
-const P1  = n => (n==null||isNaN(n)?'—':n.toFixed(1)+'%');
-const WON = n => (n==null||isNaN(n)?'—':Math.round(n).toLocaleString('ko-KR')+'원');
-const N0  = n => (n==null||isNaN(n)?'—':Math.round(n).toLocaleString('ko-KR')+'원');
-let DATA, chTotal, chDiv, selIdx=0;
-
-// 모드: false = ① 최초 투자 대비, true = ② 지금 투자 가정
-let mode2 = false;
-try{ mode2 = localStorage.getItem('ccdash_mode')==='2'; }catch(e){}
-let sortKey, sortDir;
-
-// ── 배당률 파생값 ────────────────────────────────────────────
-// 배당률(연) = 연간 배당금 ÷ 주가.
-//   연간 배당금(주당) = 최근 12완결월 실제 주당배당 합(집계가 12개월 미만이면 ÷개월수 ×12 로 연율화)
-//   주가 = ② 지금 투자 가정 → 현재가 / ① 최초 투자 대비 → 매입단가
-const annDivPS = s => (s.div_ps_ttm!=null && s.nmo_ttm) ? s.div_ps_ttm / s.nmo_ttm * 12 : null;
-const yNow  = s => { const a=annDivPS(s); return (a!=null && s.cur_price)   ? a/s.cur_price*100   : null; };
-const yCost = s => { const a=annDivPS(s); return (a!=null && s.entry_price) ? a/s.entry_price*100 : null; };
-const estNow = s => { const y=yNow(s); return y==null ? null : y/100*1e8; };
-
-// ── 컬럼 정의 (모드별) ───────────────────────────────────────
-const COLS1 = [
-  {k:'name', label:'종목', sort:e=>e.name,
-    cell:(e,s)=>`<td>${e.name.replace(/증권.*$/,'')}${e.full_2y?'':'<span class="tag">'+s.months_held+'개월</span>'}</td>`},
-  {k:'months_held', label:'보유<br>기간', sort:e=>e.summary.months_held, cell:(e,s)=>`<td>${s.months_held}개월</td>`},
-  {k:'entry_price', label:'매입단가<br>(주당)', sort:e=>e.summary.entry_price, cell:(e,s)=>`<td>${WON(s.entry_price)}</td>`},
-  {k:'avg_monthly_div_12m', label:'월평균 배당<br>(세전·1억당)', sort:e=>e.summary.avg_monthly_div_12m,
-    cell:(e,s)=>`<td><b>${WON(s.avg_monthly_div_12m)}</b>${(s.pay_months_12m!=null && s.win_months && s.pay_months_12m<s.win_months)?' <span class="tag" title="최근 '+s.win_months+'개 완결월 중 실제로 분배한 달 수">'+s.pay_months_12m+'/'+s.win_months+'</span>':''}</td>`},
-  {k:'yCost', label:'매입가 대비<br>연 배당률', tip:'최근 12개월 주당배당 합 ÷ 매입단가 (12개월 미만이면 연율화) — 그때 샀으면 넣은 돈 대비 연 몇 %',
-    sort:e=>yCost(e.summary), cell:(e,s)=>`<td><b>${P1(yCost(s)!=null?yCost(s):(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct))}</b></td>`},
-  {k:'preservation_pct', label:'원금(평가액)<br>보존율', sort:e=>e.summary.preservation_pct,
-    cell:(e,s)=>{const c=s.preservation_pct>=100?'pres-hi':s.preservation_pct<90?'pres-lo':''; return `<td class="${c}">${s.preservation_pct.toFixed(1)}%</td>`;}},
-  {k:'total_ret_pct', label:'총수익률<br>(평가+배당)', sort:e=>e.summary.total_ret_pct,
-    cell:(e,s)=>`<td class="${s.total_ret_pct>=0?'pos':'neg'}">${PCT(s.total_ret_pct)}</td>`},
-  {k:'total_ret_ann_pct', label:'연환산<br>총수익', sort:e=>e.summary.total_ret_ann_pct,
-    cell:(e,s)=>`<td class="${s.total_ret_ann_pct>=0?'pos':'neg'}">${PCT(s.total_ret_ann_pct)}</td>`},
-  {k:'bench_total_ret_pct', label:'같은 기간<br>KODEX 200', sort:e=>e.bench_total_ret_pct,
-    cell:(e,s)=>`<td class="muted">${PCT(e.bench_total_ret_pct)}</td>`},
+const COLS = [
+  {key:'name',   label:'종목명',            sortable:true,  dir:'asc'},
+  {key:'price',  label:'최종배당시 주가',    sortable:true,  dir:'desc'},
+  {key:'month',  label:'최종배당월',         sortable:true,  dir:'desc'},
+  {key:'yield',  label:'연배당율',           sortable:true,  dir:'desc'},
+  {key:'hist',   label:'최근 6개월 배당액',  sortable:false, dir:'desc'},
 ];
+let DATA = [];
+let sortKey = 'yield', sortDir = 'desc';
 
-const COLS2 = [
-  {k:'name', label:'종목', sort:e=>e.name, cell:(e,s)=>`<td>${e.name.replace(/증권.*$/,'')}</td>`},
-  {k:'cur_price', label:'현재가<br>(주당)', sort:e=>e.summary.cur_price, cell:(e,s)=>`<td>${WON(s.cur_price)}</td>`},
-  {k:'div_ps_ttm', label:'최근 12개월<br>배당합 (주당)', tip:'최근 12완결월(분배 시작 이후) 실제 지급된 주당 분배금 합계', sort:e=>e.summary.div_ps_ttm,
-    cell:(e,s)=>`<td>${s.div_ps_ttm!=null?s.div_ps_ttm.toLocaleString('ko-KR')+'원':'—'}${(s.nmo_ttm&&s.nmo_ttm<12)?' <span class="tag" title="실제 집계 개월수 — 배당률은 12개월로 환산">'+s.nmo_ttm+'개월</span>':''}</td>`},
-  {k:'yNow', label:'배당률<br>(연 · TTM)', tip:'최근 12개월 주당배당 합 ÷ 현재가 (12개월 미만이면 연율화) = 연간 배당금 ÷ 지금 주가', sort:e=>yNow(e.summary),
-    cell:(e,s)=>`<td><b>${P1(yNow(s))}</b></td>`},
-  {k:'estNow', label:'지금 1억 매수 시<br>추정 연 배당', tip:'배당률(연·TTM) × 1억원', sort:e=>estNow(e.summary),
-    cell:(e,s)=>{const v=estNow(s); return `<td><b>${N0(v)}</b>${v!=null?' <span class="muted">월 '+N0(v/12)+'</span>':''}</td>`;}},
-];
+function fmtNum(n){ return n.toLocaleString('ko-KR'); }
+function fmtWon(n){ return fmtNum(Math.round(n)) + '원'; }
 
-const modeCfg = () => mode2
-  ? {cols:COLS2, defSort:['yNow',-1], hint:'※ 지금 현재가로 1억원을 새로 매수한다고 가정. 배당률(연) = 최근 12개월 실제 주당배당 합 ÷ 현재가. 커버드콜은 분배금에 원금(자본) 반환분이 섞여 있어 배당률이 높습니다 — 순수익은 ① 모드의 총수익률·원금 보존율로 판단. 행 클릭 상세 차트는 ① 전용.'}
-  : {cols:COLS1, defSort:['total_ret_pct',-1], hint:'※ 2년 전(또는 상장 직후) 월말에 1억원 일시금 매수·보유 기준. 행을 누르면 아래에 평가액·배당 추이 차트가 나옵니다.'};
-
-fetch('data.json').then(r=>r.json()).then(d=>{ DATA=d; init(); });
-
-function init(){
-  const b=DATA.benchmark.summary;
-  document.getElementById('hdrSub').textContent =
-    `${DATA.common_start_month} 기준 · ${DATA.generated} 갱신 · ${DATA.assumptions}`;
-  document.getElementById('callout').innerHTML =
-    `월배당 커버드콜 <b>${DATA.etfs.length}종</b>. 위 체크박스로 두 관점을 오갑니다 — `
-    + `<b>① 최초 투자 대비</b>: 2년 전(또는 상장 직후) 1억을 넣었을 때 지금까지의 성과(평가액·누적배당·총수익, KODEX 200은 총 ${PCT(b.total_ret_pct)}). `
-    + `<b>② 지금 투자 가정</b>: 오늘 현재가로 1억을 새로 넣으면 배당이 얼마나 나올지 — <b>연 배당률 = 최근 12개월 실제 주당배당 합 ÷ 현재가</b>.`;
-  document.getElementById('foot').innerHTML =
-    `· 데이터: KRX(커버드콜 ETF 전 종목 목록) + 한국투자증권 Open API — 분배금(예탁원 배당일정, 종목별 조회), 월말 종가(월봉). 매월 2일 자동 갱신.<br>`
-    + `· <b>배당률(연) = 연간 배당금 ÷ 주가</b>. 연간 배당금(주당) = 최근 12완결월 실제 지급된 주당 분배금 합계(상장 12개월 미만이면 집계 개월수만큼 → ÷개월수 ×12로 연율화). 분모 주가는 <b>① 매입단가 / ② 현재가</b>. "N/M"·"N개월" 태그 = 실제 집계된 완결월 수.<br>`
-    + `· <b>① 최초 투자 대비</b> — 그때 1억 넣은 것의 지금까지 성과. "월평균 배당(1억당)"·"매입가 대비 연 배당률"·"원금 보존율"·"총수익률"을 같이 보세요. 행 클릭 시 아래에 추이 차트.<br>`
-    + `· <b>② 지금 투자 가정</b> — "지금 1억 매수 시 추정 연 배당" = 배당률(연·TTM) × 1억. 배당률이 20~40%로 높은 건 계산 오류가 아니라, 커버드콜 ETF가 옵션 프리미엄에 더해 <b>원금(자본)의 일부를 분배금으로 돌려주기 때문</b> — 순수익은 ① 모드의 총수익률/원금 보존율로 판단하세요.<br>`
-    + `· 배당은 기초자산·변동성에 따라 매달 달라지며 위 숫자는 과거 실적 기반 추정일 뿐 미래를 보장하지 않습니다. 배당소득세·수수료 미반영, 투자 권유 아님.`;
-  document.getElementById('backToList').onclick=()=>{
-    const row=document.querySelector('#tbody tr.sel') || document.getElementById('listCard');
-    document.getElementById('listCard').scrollIntoView({behavior:'smooth',block:'start'});
-    row.classList.add('flash'); setTimeout(()=>row.classList.remove('flash'),900);
-  };
-
-  const chk=document.getElementById('modeChk');
-  chk.checked=mode2;
-  chk.onchange=()=>{ mode2=chk.checked; try{localStorage.setItem('ccdash_mode',mode2?'2':'1');}catch(e){}
-    applyModeMeta(); const d=modeCfg().defSort; sortKey=d[0]; sortDir=d[1]; render(); };
-
-  applyModeMeta();
-  const d=modeCfg().defSort; sortKey=d[0]; sortDir=d[1];
-  buildCharts(); render();
-}
-
-function applyModeMeta(){
-  document.getElementById('modeLbl').textContent = mode2 ? '② 지금 투자 가정 (현재가로 1억 매수 시)' : '① 최초 투자 대비 (2년 전/상장 직후 1억 매수)';
-  document.getElementById('modeSub').textContent = mode2 ? '체크 해제 → ① 최초 투자 대비로' : '체크 → ② 지금 투자 가정으로';
-  document.getElementById('listHint').textContent = modeCfg().hint;
-  document.getElementById('chartCard').hidden = mode2;
+function sparkline(monthlyDivs){
+  const max = Math.max(1, ...monthlyDivs.map(d => d.amount));
+  const bars = monthlyDivs.map(d => {
+    const h = Math.max(2, Math.round(d.amount / max * 26));
+    const cls = d.amount > 0 ? '' : ' zero';
+    const title = `${d.month}: ${fmtWon(d.amount)}`;
+    return `<i class="${cls.trim()}" style="height:${h}px" title="${title}"></i>`;
+  }).join('');
+  return `<span class="spark">${bars}</span>`;
 }
 
 function render(){
-  const cols=modeCfg().cols;
-  if(!cols.some(c=>c.k===sortKey)){ const d=modeCfg().defSort; sortKey=d[0]; sortDir=d[1]; }
-  const col=cols.find(c=>c.k===sortKey);
-
-  const thr=document.getElementById('thead');
-  thr.innerHTML='<tr>'+cols.map(c=>{
-    const on=c.k===sortKey;
-    return `<th data-k="${c.k}" class="${on?'active '+(sortDir<0?'desc':'asc'):''}"${c.tip?' title="'+c.tip+'"':''}>${c.label}</th>`;
-  }).join('')+'</tr>';
-  thr.querySelectorAll('th').forEach(th=>th.onclick=()=>{
-    const k=th.dataset.k;
-    if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir = k==='name'?1:-1; }
-    render();
+  const thead = document.getElementById('thead');
+  thead.innerHTML = '<tr>' + COLS.map(c => {
+    const active = c.key === sortKey;
+    const cls = active ? `active ${sortDir}` : '';
+    return `<th data-key="${c.key}" class="${cls}">${c.label}</th>`;
+  }).join('') + '</tr>';
+  thead.querySelectorAll('th').forEach(th => {
+    const col = COLS.find(c => c.key === th.dataset.key);
+    if (!col.sortable) return;
+    th.addEventListener('click', () => {
+      if (sortKey === col.key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortKey = col.key; sortDir = col.dir; }
+      render();
+    });
   });
 
-  const rows=DATA.etfs.map((e,i)=>({e,i})).sort((a,b)=>{
-    let va=col.sort(a.e), vb=col.sort(b.e);
-    if(va==null && vb==null) return 0;
-    if(va==null) return 1;
-    if(vb==null) return -1;
-    if(typeof va==='string') return va.localeCompare(vb)*sortDir;
-    return (va<vb?-1:va>vb?1:0)*sortDir;
+  const rows = [...DATA].sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'name') { av = a.name; bv = b.name; }
+    else if (sortKey === 'price') { av = a.price_at_last_div; bv = b.price_at_last_div; }
+    else if (sortKey === 'month') { av = a.last_div_month; bv = b.last_div_month; }
+    else { av = a.ann_yield_pct; bv = b.ann_yield_pct; }
+    if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortDir === 'asc' ? av - bv : bv - av;
   });
 
-  const tb=document.getElementById('tbody'); tb.innerHTML='';
-  for(const {e,i} of rows){
-    const s=e.summary;
-    const tr=document.createElement('tr');
-    tr.className = (mode2?'':'clk ') + (!mode2 && i===selIdx?'sel':'');
-    if(!mode2) tr.onclick=()=>{
-      selIdx=i; render(); updateCharts();
-      document.getElementById('chartCard').scrollIntoView({behavior:'smooth',block:'start'});
-    };
-    tr.innerHTML = cols.map(c=>c.cell(e,s)).join('');
-    tb.appendChild(tr);
-  }
-  if(!mode2) updateCharts();
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.name}</td>
+      <td>${fmtWon(r.price_at_last_div)}</td>
+      <td class="month-td">${r.last_div_month}</td>
+      <td class="yield">${r.ann_yield_pct.toFixed(2)}%</td>
+      <td>${sparkline(r.monthly_divs)}</td>
+    </tr>
+  `).join('');
 }
 
-function buildCharts(){
-  chTotal=new Chart(document.getElementById('cTotal'),{
-    type:'line', data:{labels:[],datasets:[]},
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},
-        tooltip:{callbacks:{label:c=>c.dataset.label+': '+KRW(c.parsed.y)}}},
-      scales:{y:{ticks:{callback:v=>(v/1e8).toFixed(2)+'억'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}}}
-  });
-  chDiv=new Chart(document.getElementById('cDiv'),{
-    type:'bar', data:{labels:[],datasets:[]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>KRW(c.parsed.y)}}},
-      scales:{y:{ticks:{callback:v=>(v/1e4).toFixed(0)+'만'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}}}
-  });
-  document.getElementById('benchToggle').onchange=updateCharts;
-}
-
-function updateCharts(){
-  if(mode2) return;
-  const e=DATA.etfs[selIdx]; if(!e) return;
-  const s=e.summary;
-  document.getElementById('selName').textContent=e.name.replace(/증권.*$/,'');
-  document.getElementById('selKpis').innerHTML =
-    `<div class="kpi">매입단가 → 현재가<b>${KRW(s.entry_price)} → ${KRW(s.cur_price)}</b></div>`
-    +`<div class="kpi">월평균 배당(세전·1억당)<b>${KRW(s.avg_monthly_div_12m)}</b></div>`
-    +`<div class="kpi">매입가 대비 연 배당률<b>${P1(s.yoc_ann_pct!=null?s.yoc_ann_pct:s.income_yield_ann_pct)}</b></div>`
-    +`<div class="kpi">현재 평가액 / 누적 배당<b>${KRW(s.nav_now)} / ${KRW(s.cum_div_now)}</b></div>`
-    +`<div class="kpi">총자산<b class="${s.total_ret_pct>=0?'pos':'neg'}">${KRW(s.total_now)} (${PCT(s.total_ret_pct)})</b></div>`
-    +`<div class="kpi">보유기간<b>${s.months_held}개월 (${e.start_month}~)</b></div>`;
-
-  const labels=e.series.map(x=>x.month);
-  const ds=[
-    {label:'평가액(원금)',data:e.series.map(x=>x.nav),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.15)',fill:true,stack:'a',pointRadius:0,borderWidth:1.5},
-    {label:'누적 수령배당',data:e.series.map(x=>x.cum_div),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.25)',fill:true,stack:'a',pointRadius:0,borderWidth:1.5},
-  ];
-  if(document.getElementById('benchToggle').checked){
-    const bser=benchRebased(e.start_month);
-    if(bser) ds.push({label:'KODEX 200 총자산(동일기간)',data:bser,borderColor:'#f59e0b',borderDash:[5,4],fill:false,pointRadius:0,borderWidth:2});
-  }
-  chTotal.data.labels=labels; chTotal.data.datasets=ds;
-  chTotal.options.scales.y.stacked=true;
-  chTotal.update();
-
-  chDiv.data.labels=labels;
-  chDiv.data.datasets=[{data:e.series.map(x=>x.month_div),backgroundColor:'#10b981'}];
-  chDiv.update();
-}
-
-function benchRebased(startMonth){
-  const b=DATA.benchmark.series; if(!b) return null;
-  const i0=b.findIndex(x=>x.month===startMonth); if(i0<0) return null;
-  const base=b[i0].nav, div0=b[i0].cum_div;
-  return b.slice(i0).map(x=> 1e8*(x.nav/base) + (x.cum_div-div0)*(1e8/base) );
-}
+fetch('data.json').then(r => r.json()).then(d => {
+  DATA = d.etfs || [];
+  document.getElementById('hdrSub').textContent =
+    `${d.generated} 기준 · 월배당 커버드콜 ETF ${DATA.length}종 · ${d.assumptions}`;
+  document.getElementById('foot').innerHTML =
+    '이 페이지는 정보 제공 목적이며 투자 권유가 아닙니다. 연배당율은 최근 배당 흐름을 단순 연율화한 값으로, 향후 분배금이 달라지면 실제 수익률과 차이가 날 수 있습니다.';
+  render();
+}).catch(err => {
+  document.getElementById('hdrSub').textContent = '데이터를 불러오지 못했습니다.';
+  console.error(err);
+});
 </script>
 </body>
 </html>

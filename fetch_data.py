@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""커버드콜 ETF 월배당 비교 대시보드 데이터 수집.
+"""커버드콜 ETF 월배당 비교 대시보드 데이터 수집 (단순 정보제공판).
 
-2년 전 월말(또는 상장 직후)에 각 ETF에 1억원을 일시금 매수(buy & hold),
-분배금은 현금 수령(재투자 X, 세전). 매월말 기준: 평가액(자본) / 누적 수령배당(소득)
-분리, KODEX 200(069500)과 비교.
+종목별로 "최종배당시 주가 / 최종배당월 / 주가대비 연배당율 / 최근 6개월 배당액"만
+보여준다. 1억 투자 시뮬레이션·KODEX200 비교는 없음(2026-09-13 전면 개편).
+
+연배당율 = (최종배당월부터 6개월간 배당 합 × 2) ÷ 최종배당시 주가
 
 데이터 소스
   - 커버드콜 ETF 목록: KRX data-dbg  /svc/apis/etp/etf_bydd_trd  (AUTH_KEY 헤더)
@@ -28,10 +29,8 @@ KRX_URL = "https://data-dbg.krx.co.kr/svc/apis"
 APP = os.environ["KIS_APP_KEY"]
 SEC = os.environ["KIS_APP_SECRET"]
 KRX_KEY = os.environ["KRX_AUTH_KEY"]
-PRINCIPAL = 100_000_000
 LOOKBACK_MONTHS = 24
-BENCH_CODE = "069500"
-BENCH_NAME = "KODEX 200"
+YIELD_WINDOW = 6  # 최종배당월부터 이만큼(포함) 역산해 연배당율/배당내역 산출
 
 NAME_KEYS = ("커버드콜",)
 # 월배당 판정: 분배를 시작한 뒤의 "완결된 달"(진행 중인 이번 달 제외) 중 이 비율 이상에서
@@ -92,6 +91,13 @@ def month_ends(n):
         out.append((d.strftime("%Y%m%d"), last.strftime("%Y%m%d"), d.strftime("%Y-%m")))
         d = (d - datetime.timedelta(days=1)).replace(day=1)
     return list(reversed(out))
+
+
+def shift_ym(ym, delta):
+    """'YYYY-MM'에서 delta개월 이동(음수=과거)한 'YYYY-MM'."""
+    y, m = int(ym[:4]), int(ym[5:7])
+    idx = y * 12 + (m - 1) + delta
+    return f"{idx // 12}-{idx % 12 + 1:02d}"
 
 
 def discover_covered_call_etfs():
@@ -182,104 +188,37 @@ def is_monthly_payer(by_month, months):
     return still_active and hit / len(active) >= MONTHLY_HIT_RATIO
 
 
-def simulate(closes, divs_by_month, months, start_ym):
-    """start_ym 월말에 PRINCIPAL 매수. 이후 매월말 시계열."""
-    if start_ym not in closes:
+def build_summary(code, name, divs_by_month, closes):
+    """최종배당월/그 시점 주가/연배당율/최근 6개월 배당내역."""
+    paid = [ym for ym, amt in divs_by_month.items() if amt > 0]
+    if not paid:
         return None
-    shares = PRINCIPAL / closes[start_ym]
-    series = []
-    cum_div = 0.0
-    started = False
-    for _, _, ym in months:
-        if ym == start_ym:
-            started = True
-        if not started:
-            continue
-        px = closes.get(ym)
-        if px is None:
-            continue
-        month_div = shares * divs_by_month.get(ym, 0.0)
-        cum_div += month_div
-        nav = shares * px
-        series.append({
-            "month": ym,
-            "price": round(px, 1),
-            "nav": round(nav),
-            "month_div": round(month_div),
-            "cum_div": round(cum_div),
-            "total": round(nav + cum_div),
-        })
-    if len(series) < 2:
+    last_div_month = max(paid)
+    price = closes.get(last_div_month)
+    if price is None:
         return None
-
-    cur_ym = datetime.date.today().strftime("%Y-%m")
-    complete = [s for s in series if s["month"] != cur_ym]
-    last = series[-1]
-    yrs = max(len(series) - 1, 1) / 12.0
-
-    # 월배당(세전·1억당): "분배를 시작한 달"부터의 완결월(이번 달 제외) 중 최근 12개의
-    # 실제 분배 총액 ÷ 그 개월수 (중간에 분배 0인 달은 포함, 시작 전 0인 달은 제외).
-    pay_ms = [s["month"] for s in series if s["month_div"] > 0]
-    first_pay = pay_ms[0] if pay_ms else (complete[0]["month"] if complete else series[0]["month"])
-    win = [s for s in complete if s["month"] >= first_pay][-12:]
-    if not win:
-        win = complete[-12:] if complete else series[-12:]
-    avg_monthly_div = round(sum(s["month_div"] for s in win) / len(win)) if win else 0
-    pay_months = sum(1 for s in win if s["month_div"] > 0)
-    # TTM: 최근 12완결월(분배 시작 이후) 실제 주당배당 합계 + 실제 집계 개월수.
-    div_ps_ttm = round(sum(s["month_div"] for s in win) / shares, 1) if (win and shares) else None
-    nmo_ttm = len(win)
-
-    total_ret = last["total"] / PRINCIPAL - 1
-    nav_ret = last["nav"] / PRINCIPAL - 1
+    window_months = [shift_ym(last_div_month, -i) for i in range(YIELD_WINDOW - 1, -1, -1)]
+    monthly_divs = [{"month": ym, "amount": round(divs_by_month.get(ym, 0.0), 1)} for ym in window_months]
+    window_sum = sum(x["amount"] for x in monthly_divs)
+    ann_yield_pct = round(window_sum * 2 / price * 100, 2)
     return {
-        "shares": round(shares, 2),
-        "start_month": start_ym,
-        "series": series,
-        "summary": {
-            "nav_now": last["nav"],
-            "cum_div_now": last["cum_div"],
-            "total_now": last["total"],
-            "nav_ret_pct": round(nav_ret * 100, 2),
-            "div_ret_pct": round(last["cum_div"] / PRINCIPAL * 100, 2),
-            "total_ret_pct": round(total_ret * 100, 2),
-            "nav_ret_ann_pct": round(((1 + nav_ret) ** (1 / yrs) - 1) * 100, 2),
-            "total_ret_ann_pct": round(((1 + total_ret) ** (1 / yrs) - 1) * 100, 2),
-            "income_yield_ann_pct": round(last["cum_div"] / PRINCIPAL / yrs * 100, 2),
-            "preservation_pct": round(last["nav"] / PRINCIPAL * 100, 2),
-            "entry_price": round(closes[start_ym], 1),
-            "cur_price": last["price"],
-            # TTM(최근 12완결월) 주당배당 합계 + 실제 집계 개월수. 배당률은 프런트에서
-            #   연배당(주당) = div_ps_ttm / nmo_ttm * 12,  배당률 = 그것 ÷ (현재가 또는 매입가).
-            "div_ps_ttm": div_ps_ttm,
-            "nmo_ttm": nmo_ttm,
-            "div_per_share_month_12m": round(avg_monthly_div / shares, 1) if shares else 0,
-            # ① 매입가 대비 연 배당률 = (최근 12완결월 월평균 분배 × 12) ÷ 매입원금
-            #   = (div_ps_ttm/nmo_ttm × 12) ÷ 매입단가 와 동일.
-            "yoc_ann_pct": round(avg_monthly_div * 12 / PRINCIPAL * 100, 2),
-            "avg_monthly_div_12m": avg_monthly_div,
-            "pay_months_12m": pay_months,
-            "win_months": len(win),
-            "months_held": len(series),
-        },
+        "code": code,
+        "name": name,
+        "last_div_month": last_div_month,
+        "price_at_last_div": round(price, 1),
+        "ann_yield_pct": ann_yield_pct,
+        "monthly_divs": monthly_divs,
     }
 
 
 def main():
     months = month_ends(LOOKBACK_MONTHS)
-    common_start = months[0][2]
-    print(f"기간 {months[0][2]} ~ {months[-1][2]}  (일시금 기준월 {common_start})", flush=True)
+    print(f"기간 {months[0][2]} ~ {months[-1][2]}", flush=True)
 
     universe = discover_covered_call_etfs()
     print(f"KRX 커버드콜 ETF {len(universe)}종 발견", flush=True)
 
-    bench_div = fetch_dividends(BENCH_CODE, months)
-    time.sleep(0.3)
-    bench_closes = fetch_monthly_closes(BENCH_CODE, months)
-    time.sleep(0.3)
-    bench_sim = simulate(bench_closes, bench_div, months, common_start)
-
-    n_month, n_price = 0, 0
+    n_month = 0
     etfs = []
     for code, name in sorted(universe.items(), key=lambda kv: kv[1]):
         divs = fetch_dividends(code, months)
@@ -292,46 +231,24 @@ def main():
         if not closes:
             print(f"  [skip] {name} ({code}) 주가 없음", flush=True)
             continue
-        avail = [ym for _, _, ym in months if ym in closes]
-        start_ym = common_start if common_start in closes else (avail[0] if avail else None)
-        if not start_ym:
+        summary = build_summary(code, name, divs, closes)
+        if not summary:
+            print(f"  [skip] {name} 요약 실패", flush=True)
             continue
-        sim = simulate(closes, divs, months, start_ym)
-        if not sim:
-            print(f"  [skip] {name} 시뮬 실패", flush=True)
-            continue
-        n_price += 1
-        bench_same = simulate(bench_closes, bench_div, months, start_ym)
-        sim["bench_total_ret_pct"] = bench_same["summary"]["total_ret_pct"] if bench_same else None
-        sim["bench_total_ret_ann_pct"] = bench_same["summary"]["total_ret_ann_pct"] if bench_same else None
-        sim["summary"]["vs_bench_pct"] = (
-            round(sim["summary"]["total_ret_pct"] - bench_same["summary"]["total_ret_pct"], 2)
-            if bench_same else None
-        )
-        etfs.append({
-            "code": code,
-            "name": name,
-            "start_month": start_ym,
-            "full_2y": start_ym == common_start,
-            **sim,
-        })
-        s = sim["summary"]
-        print(f"  ✓ {name[:36]:36} 시작 {start_ym}  총수익 {s['total_ret_pct']:+.1f}%  "
-              f"월배당 {s['avg_monthly_div_12m']:,} ({s['pay_months_12m']}/{s['win_months']})", flush=True)
+        etfs.append(summary)
+        print(f"  ✓ {name[:36]:36} 최종배당 {summary['last_div_month']}  "
+              f"주가 {summary['price_at_last_div']:,}  연배당율 {summary['ann_yield_pct']:+.1f}%", flush=True)
 
-    print(f"\n커버드콜 {len(universe)}종 → 월배당 {n_month}종 → 시뮬 완료 {len(etfs)}종", flush=True)
+    print(f"\n커버드콜 {len(universe)}종 → 월배당 {n_month}종 → 요약 완료 {len(etfs)}종", flush=True)
 
     out = {
         "generated": datetime.date.today().isoformat(),
-        "principal": PRINCIPAL,
-        "common_start_month": common_start,
-        "assumptions": "2년 전 일시금 1억 매수·보유, 분배금 현금 수령(재투자 없음), 세전",
-        "benchmark": {"code": BENCH_CODE, "name": BENCH_NAME, **(bench_sim or {})},
+        "assumptions": f"연배당율 = (최종배당월부터 {YIELD_WINDOW}개월 배당 합 × 2) ÷ 최종배당시 주가",
         "etfs": etfs,
     }
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"data.json 저장 ({len(etfs)}종 + 벤치마크)", flush=True)
+    print(f"data.json 저장 ({len(etfs)}종)", flush=True)
 
 
 if __name__ == "__main__":
