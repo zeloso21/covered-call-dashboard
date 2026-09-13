@@ -12,7 +12,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
-.wrap{max-width:980px;margin:0 auto;padding:var(--gap);}
+.wrap{max-width:1180px;margin:0 auto;padding:var(--gap);}
 .hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
 .hdr h1{font-size:18px;font-weight:600;}
 .hdr .sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:6px;line-height:1.6;}
@@ -20,7 +20,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',san
 .hint{font-size:12px;color:var(--muted);margin:0 0 14px;}
 .tbl-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
 th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card);}
 th:first-child,td:first-child{text-align:left;white-space:normal;min-width:150px;}
 th.active{color:var(--blue);}
@@ -28,10 +28,13 @@ th.active::after{content:'';display:inline-block;width:0;height:0;margin-left:4p
 th.active.desc::after{border-top-color:var(--blue);}
 th.active.asc::after{border-bottom-color:var(--blue);}
 .yield{font-weight:700;color:var(--blue);}
-.spark{display:inline-flex;align-items:flex-end;gap:2px;height:28px;vertical-align:middle;}
-.spark i{display:inline-block;width:7px;background:var(--blue);border-radius:2px 2px 0 0;min-height:2px;}
+.sum-cell{font-weight:600;}
+.mo-zero{color:var(--muted);}
+.month-td{text-align:left;min-width:80px;}
+th.grp,td.grp-start{border-left:1px solid var(--border);}
+.spark{display:inline-flex;align-items:flex-end;gap:2px;height:26px;vertical-align:middle;}
+.spark i{display:inline-block;width:6px;background:var(--blue);border-radius:2px 2px 0 0;min-height:2px;}
 .spark i.zero{background:var(--border);}
-.month-td{text-align:left;min-width:190px;}
 .foot{font-size:11px;color:var(--muted);line-height:1.7;padding:4px 2px 20px;}
 @media(max-width:640px){.wrap{padding:12px;} .hdr{padding:16px 18px;}}
 </style>
@@ -44,7 +47,7 @@ th.active.asc::after{border-bottom-color:var(--blue);}
   </div>
 
   <div class="card">
-    <div class="hint">표 머리글을 클릭하면 정렬 기준이 바뀝니다. 배당 막대에 마우스를 올리면 해당 월 금액이 표시됩니다.</div>
+    <div class="hint">표 머리글을 클릭하면 정렬 기준이 바뀝니다. 월별 배당액은 종목별 최종배당월 기준 최근 6개월(0원 달 포함), 맨 끝 추세는 같은 6개월을 오래된 순서로 본 미니 막대차트입니다.</div>
     <div class="tbl-wrap">
       <table id="tbl">
         <thead id="thead"></thead>
@@ -57,23 +60,43 @@ th.active.asc::after{border-bottom-color:var(--blue);}
 </div>
 
 <script>
-const COLS = [
-  {key:'name',   label:'종목명',            sortable:true,  dir:'asc'},
-  {key:'price',  label:'최종배당시 주가',    sortable:true,  dir:'desc'},
-  {key:'month',  label:'최종배당월',         sortable:true,  dir:'desc'},
-  {key:'yield',  label:'연배당율',           sortable:true,  dir:'desc'},
-  {key:'hist',   label:'최근 6개월 배당액',  sortable:false, dir:'desc'},
-];
 let DATA = [];
+let MONTH_COLS = []; // [{key:'m0', ym:'2026-08', label:'8월'}, ...] newest→oldest
 let sortKey = 'yield', sortDir = 'desc';
 
-function fmtNum(n){ return n.toLocaleString('ko-KR'); }
-function fmtWon(n){ return fmtNum(Math.round(n)) + '원'; }
+function fmtNum(n){ return Math.round(n).toLocaleString('ko-KR'); }
+function fmtWon(n){ return fmtNum(n) + '원'; }
+
+function shiftYm(ym, delta){
+  const [y, m] = ym.split('-').map(Number);
+  const idx = y * 12 + (m - 1) + delta;
+  return `${Math.floor(idx / 12)}-${String(idx % 12 + 1).padStart(2, '0')}`;
+}
+
+function modeLastDivMonth(rows){
+  const count = {};
+  rows.forEach(r => { count[r.last_div_month] = (count[r.last_div_month] || 0) + 1; });
+  return Object.entries(count).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function buildMonthCols(anchorYm){
+  // newest(anchor) → oldest, 6칸. 같은 해면 "8월"처럼 단순 표기, 연도가 바뀌는
+  // 지점에서만 "25.8월"처럼 연도를 붙인다(맨 앞 칸은 상단 기준일로 이미 연도가 드러나 생략).
+  const yms = Array.from({length: 6}, (_, i) => shiftYm(anchorYm, -i));
+  return yms.map((ym, i) => {
+    const [y, m] = ym.split('-');
+    const prevY = i === 0 ? null : yms[i - 1].split('-')[0];
+    const label = (i > 0 && y !== prevY) ? `${y.slice(2)}.${Number(m)}월` : `${Number(m)}월`;
+    return {key: `m${i}`, ym, label};
+  });
+}
 
 function sparkline(monthlyDivs){
-  const max = Math.max(1, ...monthlyDivs.map(d => d.amount));
-  const bars = monthlyDivs.map(d => {
-    const h = Math.max(2, Math.round(d.amount / max * 26));
+  // 오래된→최신 순으로 그려서 "추세"로 읽히게 한다.
+  const asc = [...monthlyDivs].sort((a, b) => a.month.localeCompare(b.month));
+  const max = Math.max(1, ...asc.map(d => d.amount));
+  const bars = asc.map(d => {
+    const h = Math.max(2, Math.round(d.amount / max * 24));
     const cls = d.amount > 0 ? '' : ' zero';
     const title = `${d.month}: ${fmtWon(d.amount)}`;
     return `<i class="${cls.trim()}" style="height:${h}px" title="${title}"></i>`;
@@ -82,14 +105,24 @@ function sparkline(monthlyDivs){
 }
 
 function render(){
+  const cols = [
+    {key:'name',  label:'종목명',           sortable:true,  dir:'asc'},
+    {key:'price', label:'최종배당시 주가',   sortable:true,  dir:'desc'},
+    {key:'month', label:'최종배당월',        sortable:true,  dir:'desc'},
+    ...MONTH_COLS.map(mc => ({key:mc.key, label:mc.label, sortable:false})),
+    {key:'sum',   label:'6개월 합계',        sortable:true,  dir:'desc'},
+    {key:'yield', label:'연배당율',          sortable:true,  dir:'desc'},
+    {key:'trend', label:'추세',              sortable:false},
+  ];
+
   const thead = document.getElementById('thead');
-  thead.innerHTML = '<tr>' + COLS.map(c => {
+  thead.innerHTML = '<tr>' + cols.map((c, i) => {
     const active = c.key === sortKey;
-    const cls = active ? `active ${sortDir}` : '';
+    const cls = [active ? `active ${sortDir}` : '', i === 3 ? 'grp' : '', c.key === 'sum' ? 'grp' : ''].filter(Boolean).join(' ');
     return `<th data-key="${c.key}" class="${cls}">${c.label}</th>`;
   }).join('') + '</tr>';
   thead.querySelectorAll('th').forEach(th => {
-    const col = COLS.find(c => c.key === th.dataset.key);
+    const col = cols.find(c => c.key === th.dataset.key);
     if (!col.sortable) return;
     th.addEventListener('click', () => {
       if (sortKey === col.key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -98,34 +131,52 @@ function render(){
     });
   });
 
-  const rows = [...DATA].sort((a, b) => {
+  const withCalc = DATA.map(r => ({
+    ...r,
+    sum6: r.monthly_divs.reduce((s, d) => s + d.amount, 0),
+    byMonth: Object.fromEntries(r.monthly_divs.map(d => [d.month, d.amount])),
+  }));
+
+  const rows = withCalc.sort((a, b) => {
     let av, bv;
     if (sortKey === 'name') { av = a.name; bv = b.name; }
     else if (sortKey === 'price') { av = a.price_at_last_div; bv = b.price_at_last_div; }
     else if (sortKey === 'month') { av = a.last_div_month; bv = b.last_div_month; }
+    else if (sortKey === 'sum') { av = a.sum6; bv = b.sum6; }
     else { av = a.ann_yield_pct; bv = b.ann_yield_pct; }
     if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortDir === 'asc' ? av - bv : bv - av;
   });
 
   const tbody = document.getElementById('tbody');
-  tbody.innerHTML = rows.map(r => `
+  tbody.innerHTML = rows.map(r => {
+    const monthCells = MONTH_COLS.map((mc, i) => {
+      const amt = r.byMonth[mc.ym];
+      const grpCls = i === 0 ? ' grp-start' : '';
+      if (amt === undefined) return `<td class="month-td mo-zero${grpCls}">–</td>`;
+      if (amt === 0) return `<td class="month-td mo-zero${grpCls}" title="${mc.ym}: 0원">–</td>`;
+      return `<td class="month-td${grpCls}" title="${mc.ym}">${fmtNum(amt)}</td>`;
+    }).join('');
+    return `
     <tr>
       <td>${r.name}</td>
       <td>${fmtWon(r.price_at_last_div)}</td>
-      <td class="month-td">${r.last_div_month}</td>
+      <td>${r.last_div_month}</td>
+      ${monthCells}
+      <td class="sum-cell grp-start">${fmtWon(r.sum6)}</td>
       <td class="yield">${r.ann_yield_pct.toFixed(2)}%</td>
       <td>${sparkline(r.monthly_divs)}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 fetch('data.json').then(r => r.json()).then(d => {
   DATA = d.etfs || [];
+  if (DATA.length) MONTH_COLS = buildMonthCols(modeLastDivMonth(DATA));
   document.getElementById('hdrSub').textContent =
     `${d.generated} 기준 · 월배당 커버드콜 ETF ${DATA.length}종 · ${d.assumptions}`;
   document.getElementById('foot').innerHTML =
-    '이 페이지는 정보 제공 목적이며 투자 권유가 아닙니다. 연배당율은 최근 배당 흐름을 단순 연율화한 값으로, 향후 분배금이 달라지면 실제 수익률과 차이가 날 수 있습니다.';
+    '이 페이지는 정보 제공 목적이며 투자 권유가 아닙니다. 월별 배당액 헤더는 대부분 종목이 공유하는 최근 6개월 기준이며, 배당 시기가 다른 소수 종목은 셀에 마우스를 올리면 실제 해당 월이 표시됩니다. 연배당율은 각 종목 자신의 최종배당월 6개월 실적을 단순 연율화한 값으로, 향후 분배금이 달라지면 실제 수익률과 차이가 날 수 있습니다.';
   render();
 }).catch(err => {
   document.getElementById('hdrSub').textContent = '데이터를 불러오지 못했습니다.';
