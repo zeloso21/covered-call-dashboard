@@ -21,8 +21,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',san
 .tbl-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
-th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card);}
-th:first-child,td:first-child{text-align:left;white-space:normal;min-width:150px;}
+th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card);z-index:1;}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:130px;position:sticky;left:0;background:var(--card);box-shadow:2px 0 4px -2px rgba(0,0,0,.12);}
+th:first-child{z-index:2;}
 th.active{color:var(--blue);}
 th.active::after{content:'';display:inline-block;width:0;height:0;margin-left:4px;border:4px solid transparent;vertical-align:middle;}
 th.active.desc::after{border-top-color:var(--blue);}
@@ -30,13 +31,21 @@ th.active.asc::after{border-bottom-color:var(--blue);}
 .yield{font-weight:700;color:var(--blue);}
 .sum-cell{font-weight:600;}
 .mo-zero{color:var(--muted);}
-.month-td{text-align:left;min-width:80px;}
+.month-td{text-align:left;min-width:70px;}
 th.grp,td.grp-start{border-left:1px solid var(--border);}
 .spark{display:inline-flex;align-items:flex-end;gap:2px;height:26px;vertical-align:middle;}
 .spark i{display:inline-block;width:6px;background:var(--blue);border-radius:2px 2px 0 0;min-height:2px;}
 .spark i.zero{background:var(--border);}
 .foot{font-size:11px;color:var(--muted);line-height:1.7;padding:4px 2px 20px;}
-@media(max-width:640px){.wrap{padding:12px;} .hdr{padding:16px 18px;}}
+@media(max-width:640px){
+  .wrap{padding:10px;} .hdr{padding:14px 16px;} .card{padding:12px 10px;}
+  .hdr h1{font-size:16px;} .hdr .sub{font-size:11px;}
+  th,td{padding:7px 6px;font-size:12px;}
+  th:first-child,td:first-child{min-width:100px;font-size:12px;}
+  .month-td{min-width:44px;}
+  .spark{height:20px;} .spark i{width:4px;}
+  .hint{font-size:11px;}
+}
 </style>
 </head>
 <body>
@@ -108,17 +117,17 @@ function render(){
   const cols = [
     {key:'name',  label:'종목명',           sortable:true,  dir:'asc'},
     {key:'price', label:'최종배당시 주가',   sortable:true,  dir:'desc'},
-    {key:'month', label:'최종배당월',        sortable:true,  dir:'desc'},
-    ...MONTH_COLS.map(mc => ({key:mc.key, label:mc.label, sortable:false})),
     {key:'sum',   label:'6개월 합계',        sortable:true,  dir:'desc'},
     {key:'yield', label:'연배당율',          sortable:true,  dir:'desc'},
+    {key:'month', label:'최종배당월',        sortable:true,  dir:'desc'},
+    ...MONTH_COLS.map(mc => ({key:mc.key, label:mc.label, sortable:false})),
     {key:'trend', label:'추세',              sortable:false},
   ];
 
   const thead = document.getElementById('thead');
-  thead.innerHTML = '<tr>' + cols.map((c, i) => {
+  thead.innerHTML = '<tr>' + cols.map(c => {
     const active = c.key === sortKey;
-    const cls = [active ? `active ${sortDir}` : '', i === 3 ? 'grp' : '', c.key === 'sum' ? 'grp' : ''].filter(Boolean).join(' ');
+    const cls = [active ? `active ${sortDir}` : '', c.key === 'month' ? 'grp' : ''].filter(Boolean).join(' ');
     return `<th data-key="${c.key}" class="${cls}">${c.label}</th>`;
   }).join('') + '</tr>';
   thead.querySelectorAll('th').forEach(th => {
@@ -150,22 +159,21 @@ function render(){
 
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = rows.map(r => {
-    const monthCells = MONTH_COLS.map((mc, i) => {
+    const monthCells = MONTH_COLS.map(mc => {
       const amt = r.byMonth[mc.ym];
-      const grpCls = i === 0 ? ' grp-start' : '';
-      if (amt === undefined) return `<td class="month-td mo-zero${grpCls}">–</td>`;
-      if (amt === 0) return `<td class="month-td mo-zero${grpCls}" title="${mc.ym}: 0원">–</td>`;
-      return `<td class="month-td${grpCls}" title="${mc.ym}">${fmtNum(amt)}</td>`;
+      if (amt === undefined) return `<td class="month-td mo-zero">–</td>`;
+      if (amt === 0) return `<td class="month-td mo-zero" title="${mc.ym}: 0원">–</td>`;
+      return `<td class="month-td" title="${mc.ym}">${fmtNum(amt)}</td>`;
     }).join('');
     return `
     <tr>
       <td>${r.name}</td>
       <td>${fmtWon(r.price_at_last_div)}</td>
-      <td>${r.last_div_month}</td>
-      ${monthCells}
-      <td class="sum-cell grp-start">${fmtWon(r.sum6)}</td>
+      <td class="sum-cell">${fmtWon(r.sum6)}</td>
       <td class="yield">${r.ann_yield_pct.toFixed(2)}%</td>
-      <td>${sparkline(r.monthly_divs)}</td>
+      <td class="grp-start">${r.last_div_month}</td>
+      ${monthCells}
+      <td class="grp-start">${sparkline(r.monthly_divs)}</td>
     </tr>`;
   }).join('');
 }
