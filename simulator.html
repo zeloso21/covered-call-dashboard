@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>커버드콜 vs 일반 ETF 시뮬레이터</title>
+<meta name="description" content="커버드콜 ETF를 같은 기초자산의 일반 ETF와 실제 과거 데이터로 나란히 비교하는 시뮬레이터">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f6f9; --card:#fff; --header:#0f172a; --text:#1e293b; --muted:#64748b;
+  --border:#e2e8f0; --soft:#f1f5f9; --accent:#2563eb;
+  --cc:#eb6834; --pair:#2a78d6; --dep:#1baf7a;
+  --grid:rgba(100,116,139,.18);
+  --warn-bg:#fff7ed; --warn-bd:#fdba74; --warn-tx:#9a3412;
+  --gap:16px; --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0b1120; --card:#151c2c; --header:#020617; --text:#e2e8f0; --muted:#94a3b8;
+    --border:#273248; --soft:#1c2539; --accent:#60a5fa;
+    --cc:#d95926; --pair:#3987e5; --dep:#199e70;
+    --grid:rgba(148,163,184,.16);
+    --warn-bg:#2a1a0e; --warn-bd:#9a3412; --warn-tx:#fdba74;
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;padding-bottom:64px;}
+.wrap{max-width:1080px;margin:0 auto;padding:var(--gap);}
+a{color:var(--accent);}
+.hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
+.hdr h1{font-size:19px;font-weight:700;}
+.hdr .back{font-size:12px;color:rgba(255,255,255,.65);text-decoration:none;}
+.hdr ol{margin:10px 0 0 18px;font-size:13px;color:rgba(255,255,255,.82);line-height:1.7;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:var(--gap);}
+.card h2{font-size:16px;font-weight:700;margin-bottom:4px;}
+.card h2 .no{display:inline-block;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:var(--soft);color:var(--muted);font-size:12px;margin-right:6px;vertical-align:1px;}
+.desc{font-size:12.5px;color:var(--muted);margin-bottom:12px;}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 16px;}
+.ctl label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600;}
+.ctl input,.ctl select{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);}
+.ctl .help{font-size:11.5px;color:var(--muted);margin-top:3px;min-height:16px;}
+.etfpick{grid-column:1/-1;}
+.etfpick .row{display:flex;gap:8px;flex-wrap:wrap;}
+.etfpick input{flex:1 1 180px;}
+.etfpick select{flex:3 1 280px;}
+.pairbox{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:13px;padding:10px 12px;background:var(--soft);border-radius:8px;}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid var(--warn-bd);background:var(--warn-bg);color:var(--warn-tx);margin-left:4px;}
+.memo{font-size:12px;color:var(--muted);}
+.period{grid-column:1/-1;font-size:20px;font-weight:800;letter-spacing:-.2px;padding:6px 0 0;}
+.period small{display:block;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0;}
+.btns{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;}
+button{font:inherit;font-size:13px;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;}
+button:hover{border-color:var(--accent);}
+.notice{border:1px solid var(--warn-bd);background:var(--warn-bg);color:var(--warn-tx);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px;}
+.notice:empty{display:none;}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;margin-bottom:8px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{display:inline-block;font-size:12.5px;text-decoration:none;color:var(--text);background:var(--card);border:1px solid var(--border);border-radius:16px;padding:4px 11px;margin-right:6px;}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin:2px 0 8px;}
+.legend span{white-space:nowrap;}
+.lg-line{display:inline-block;width:18px;height:0;border-top:2.5px solid;vertical-align:4px;margin-right:5px;}
+.lg-line.dash{border-top-style:dashed;}
+.chartbox{position:relative;height:280px;}
+.chartbox.sm{height:200px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.sub-h{font-size:13px;font-weight:700;margin:6px 0 2px;}
+table.res{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+table.res th,table.res td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+table.res th:first-child,table.res td:first-child{text-align:left;color:var(--muted);white-space:normal;}
+table.res thead th{font-size:12px;color:var(--muted);font-weight:600;}
+.neg{color:#dc2626;} .pos{color:#16a34a;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .neg{color:#f87171;} :root:not([data-theme="light"]) .pos{color:#4ade80;}}
+.summary{margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--soft);border-radius:0 8px 8px 0;font-size:13.5px;font-weight:600;}
+.summary p+p{margin-top:6px;}
+.fn{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7;}
+.fn li{margin-left:16px;}
+.inline-ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:13px;margin-bottom:8px;}
+.inline-ctl input{width:110px;font:inherit;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);}
+.disclaimer{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--header);color:#fff;font-size:12px;text-align:center;padding:9px 12px;line-height:1.4;}
+#printSum{display:none;}
+@media(max-width:700px){
+  .wrap{padding:10px;} .hdr{padding:14px 16px;} .card{padding:14px 12px;}
+  .hdr h1{font-size:17px;} .hdr ol{font-size:12.5px;}
+  .grid2{grid-template-columns:1fr;}
+  .chartbox{height:240px;}
+  .period{font-size:17px;}
+  table.res th,table.res td{padding:6px 4px;font-size:12px;}
+  table.res td,table.res th{white-space:normal;word-break:keep-all;}
+  table.res th:first-child,table.res td:first-child{width:34%;min-width:96px;}
+  .disclaimer{font-size:11px;}
+}
+@media print{
+  @page{size:A4;margin:12mm;}
+  :root{--bg:#fff;--card:#fff;--text:#111;--muted:#555;--border:#ccc;--soft:#f3f3f3;}
+  body{background:#fff;padding:0;font-size:11px;}
+  .wrap > *:not(#printSum){display:none !important;}
+  .disclaimer{display:none;}
+  #printSum{display:block;}
+  #printSum h1{font-size:16px;margin-bottom:4px;}
+  #printSum .cond{font-size:11px;margin-bottom:6px;}
+  #printSum .period{font-size:14px;padding:0 0 6px;}
+  #printSum table.res{margin-top:4px;font-size:10.5px;}
+  #printSum table.res th,#printSum table.res td{padding:3px 6px;}
+  #printSum .summary{font-size:11px;margin-top:6px;padding:5px 8px;}
+  #printSum img{width:100%;max-height:72mm;object-fit:contain;display:block;margin-top:6px;}
+  #printSum .pimgs{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  #printSum .pfoot{font-size:9.5px;color:#555;margin-top:6px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <a class="back" href="./">← 커버드콜 ETF 월배당 정보</a>
+    <h1>커버드콜 vs 일반 ETF 시뮬레이터</h1>
+    <ol>
+      <li><b>커버드콜이란</b> 주식(지수)을 보유하면서 그 주식의 콜옵션을 팔아, 매달 현금(옵션 프리미엄)을 받는 구조입니다.</li>
+      <li>그 대가로 주가가 크게 오를 때 상승분의 일부를 포기합니다.</li>
+      <li>분배금의 일부는 수익이 아니라 원금에서 나갈 수 있습니다(분배 후 주가 하락).</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <div class="ctl">
+      <div class="etfpick">
+        <label for="etfSel">커버드콜 ETF 선택 <span style="font-weight:400">(이름·코드 검색)</span></label>
+        <div class="row">
+          <input id="etfQ" type="search" placeholder="검색: 나스닥, 200, 441680…" autocomplete="off">
+          <select id="etfSel"></select>
+        </div>
+      </div>
+      <div class="pairbox" id="pairBox">불러오는 중…</div>
+      <div>
+        <label for="startSel">비교 시작월 (이 달 말 종가로 매수)</label>
+        <select id="startSel"></select>
+        <div class="help" id="startHelp"></div>
+      </div>
+      <div>
+        <label for="inAmt">거치 금액 (원)</label>
+        <input id="inAmt" type="number" min="0" step="1000000" inputmode="numeric">
+        <div class="help" id="hAmt"></div>
+      </div>
+      <div>
+        <label for="inMonthly">적립 금액 (매달, 원)</label>
+        <input id="inMonthly" type="number" min="0" step="100000" inputmode="numeric">
+        <div class="help" id="hMonthly"></div>
+      </div>
+      <div>
+        <label for="inLiving">은퇴 생활비 (매달, 원)</label>
+        <input id="inLiving" type="number" min="0" step="100000" inputmode="numeric">
+        <div class="help" id="hLiving"></div>
+      </div>
+      <div>
+        <label for="inRate">예금 금리 (연 %, 세전)</label>
+        <input id="inRate" type="number" min="0" max="20" step="0.1" inputmode="decimal">
+        <div class="help">월복리, 이자소득세 차감 전</div>
+      </div>
+      <div class="period" id="periodBox"></div>
+      <div class="btns">
+        <button id="btnShare" type="button">🔗 이 화면 링크 복사</button>
+        <button id="btnPrint" type="button">🖨 한 장 요약 인쇄/PDF</button>
+        <span class="help" id="shareMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice" id="mainNotice"></div>
+
+  <nav class="toc" aria-label="섹션 바로가기">
+    <a href="#s1">1 거치식</a><a href="#s2">2 적립식</a><a href="#s3">3 분배금 사용법</a><a href="#s4">4 은퇴 생활비</a><a href="#s5">5 계좌별 세금</a><a href="#s6">6 장세별 성적</a><a href="#s1">7 예금 비교(1번에 포함)</a>
+  </nav>
+
+  <section class="card" id="s1">
+    <h2><span class="no">1</span>거치식 — 한 번에 넣고 그대로 둘 때 <span style="font-weight:400;color:var(--muted);font-size:13px">+ 7 예금 비교</span></h2>
+    <div class="desc">시작월에 한 번 매수하고 분배금은 재투자하지 않고 현금으로 모은다고 가정. 예금은 같은 금액을 입력한 금리로 월복리(세전) 운용.</div>
+    <div class="legend" id="lg1"></div>
+    <div class="chartbox"><canvas id="c1" aria-label="거치식 평가금액 추이"></canvas></div>
+    <div class="sub-h">누적 분배금</div>
+    <div class="legend" id="lg1b"></div>
+    <div class="chartbox sm"><canvas id="c1b" aria-label="누적 분배금 추이"></canvas></div>
+    <table class="res" id="t1"></table>
+    <div class="summary" id="sum1"></div>
+  </section>
+
+  <section class="card" id="s2">
+    <h2><span class="no">2</span>적립식 — 매달 같은 금액을 살 때</h2>
+    <div class="desc">시작월부터 마지막 달 직전까지 매달 말 종가로 같은 금액 매수(마지막 달은 평가만). 분배금은 현금으로 모음.</div>
+    <div class="legend" id="lg2"></div>
+    <div class="chartbox"><canvas id="c2" aria-label="적립식 평가금액 추이"></canvas></div>
+    <table class="res" id="t2"></table>
+    <div class="summary" id="sum2"></div>
+  </section>
+
+  <section class="card" id="s3">
+    <h2><span class="no">3</span>분배금 사용법 — 재투자 vs 전액 생활비 인출</h2>
+    <div class="desc">거치 금액 기준. (a) 분배금을 받은 달 종가로 다시 사는 경우, (b) 분배금을 모두 꺼내 쓰는 경우 남는 평가금액(=원금)이 유지되는지.</div>
+    <div class="grid2">
+      <div>
+        <div class="sub-h">(a) 재투자 — 평가금액</div>
+        <div class="legend" id="lg3a"></div>
+        <div class="chartbox"><canvas id="c3a" aria-label="재투자 시 평가금액"></canvas></div>
+      </div>
+      <div>
+        <div class="sub-h">(b) 전액 인출 — 남은 평가금액(원금) 유지되나?</div>
+        <div class="legend" id="lg3b"></div>
+        <div class="chartbox"><canvas id="c3b" aria-label="인출 시 평가금액"></canvas></div>
+      </div>
+    </div>
+    <table class="res" id="t3"></table>
+    <div class="summary" id="sum3"></div>
+  </section>
+
+  <section class="card" id="s4">
+    <h2><span class="no">4</span>은퇴 생활비 역산 — 매달 이만큼 받으려면?</h2>
+    <div class="desc">최근 12개월 실제 분배금으로 필요한 투자금을 계산하고, 그 금액을 비교 시작월에 넣어 매달 생활비를 꺼냈을 때의 평가금액 추이를 봅니다. 두 ETF 모두 같은 규칙: 분배금으로 먼저 충당 → 모자라면 그 달 종가로 일부 매도 → 남으면 재투자.</div>
+    <div class="summary" id="sum4a" style="margin:0 0 12px"></div>
+    <div class="legend" id="lg4"></div>
+    <div class="chartbox"><canvas id="c4" aria-label="생활비 인출 시 평가금액"></canvas></div>
+    <table class="res" id="t4"></table>
+    <div class="summary" id="sum4"></div>
+  </section>
+
+  <section class="card" id="s5">
+    <h2><span class="no">5</span>계좌별 세금 — 일반계좌 vs ISA·연금계좌</h2>
+    <div class="desc">거치 금액으로 분배금을 매달 재투자한다고 할 때, 분배금에서 세금이 떼이면 얼마나 차이 나는지.</div>
+    <table class="res" id="t5"></table>
+    <div class="summary" id="sum5"></div>
+    <ul class="fn">
+      <li><b>일반계좌</b>: 분배금 지급 시 15.4%(소득세 14% + 지방세 1.4%) 원천징수 후 남은 금액만 재투자한다고 가정. 실제로는 분배금 중 일부(국내주식 매매·평가차익 등)가 비과세일 수 있어 세금이 이보다 적을 수 있습니다.</li>
+      <li><b>ISA·연금계좌</b>: 과세이연으로 단순화 — 기간 중 분배금 전액 재투자, 인출 시 세금(ISA 비과세 한도·분리과세 9.9%, 연금소득세 3.3~5.5% 등)은 반영하지 않음.</li>
+      <li>국내 상장 해외지수 ETF는 일반계좌에서 <b>매도 차익</b>도 15.4% 과세됩니다. 이 표는 매도하지 않고 평가만 하므로 매도 차익 세금은 반영하지 않았습니다(차익이 큰 쪽이 실제로는 더 많이 냅니다).</li>
+      <li>금융소득종합과세: 이자·배당 등 금융소득이 한 해 2,000만원을 넘으면 넘는 부분은 다른 소득과 합산해 누진세율로 과세됩니다(일반계좌 기준, ISA·연금계좌 내 소득은 제외).</li>
+    </ul>
+  </section>
+
+  <section class="card" id="s6">
+    <h2><span class="no">6</span>장세별 성적 — 오를 때·횡보할 때·내릴 때</h2>
+    <div class="desc">짝꿍(일반) ETF의 그 달 총수익률(가격+분배)로 달을 나눔: 상승 &gt; +3%, 횡보 −3%~+3%, 하락 &lt; −3%. 각 구간에서 두 ETF의 평균 월 총수익률 비교. 진행 중인 마지막 달은 제외.</div>
+    <div class="legend" id="lg6"></div>
+    <div class="chartbox"><canvas id="c6" aria-label="장세별 평균 월 총수익률"></canvas></div>
+    <table class="res" id="t6"></table>
+    <div class="summary" id="sum6"></div>
+  </section>
+
+  <div class="card fn" id="assume">
+    <b>계산 가정</b>
+    <ul>
+      <li>매수는 시작월 월말 종가, 이후 매달 월말 종가로 평가합니다. 분배금은 기준일이 속한 달 말에 지급된 것으로 처리합니다(시작월 분배금은 받지 않음).</li>
+      <li>재투자·적립·매도는 그 달 종가로, 소수 주 단위까지 허용합니다(단순화).</li>
+      <li>수수료·보수는 종가에 이미 반영된 것으로 보고 따로 빼지 않습니다. 매매 수수료·호가 차이 미반영.</li>
+      <li>종가는 수정주가가 아닌 원주가입니다. 분배금은 세전(5번 제외)입니다.</li>
+      <li>마지막 달은 진행 중인 달로, 최근 종가를 사용합니다.</li>
+      <li>총수익 = (끝 평가금액 + 받은 분배금 − 투자원금) ÷ 투자원금.</li>
+    </ul>
+    <div id="dataInfo" style="margin-top:6px"></div>
+  </div>
+
+  <div id="printSum"></div>
+</div>
+
+<div class="disclaimer">과거 실적 기반 시뮬레이션이며 미래 수익을 보장하지 않습니다. 투자 권유가 아닙니다.</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+'use strict';
+const TAX = 0.154;
+const DEFAULTS = {e:'441680', a:100000000, m:500000, y:2000000, r:3};
+let H = null;            // history.json
+let PAIRS = {};          // code -> {pair, grade, memo}
+let state = {e:DEFAULTS.e, s:null, a:DEFAULTS.a, m:DEFAULTS.m, y:DEFAULTS.y, r:DEFAULTS.r};
+const charts = {};
+
+/* ---------- 포맷 ---------- */
+function fmtKRW(n){
+  if(!isFinite(n)) return '-';
+  const neg = n < 0; let v = Math.abs(n);
+  let s;
+  if(v >= 1e8){
+    const eok = Math.floor(v / 1e8), man = Math.round((v - eok*1e8) / 1e4);
+    s = man >= 10000 ? (eok+1)+'억원' : eok+'억' + (man ? ' '+man.toLocaleString('ko-KR')+'만' : '') + '원';
+  } else if(v >= 1e4){
+    s = Math.round(v/1e4).toLocaleString('ko-KR') + '만원';
+  } else {
+    s = Math.round(v).toLocaleString('ko-KR') + '원';
+  }
+  return (neg ? '−' : '') + s;
+}
+function fmtAxis(v){
+  const a = Math.abs(v);
+  if(a >= 1e8) return (v/1e8).toFixed(a >= 1e9 ? 0 : 1).replace(/\.0$/,'') + '억';
+  if(a >= 1e4) return Math.round(v/1e4).toLocaleString('ko-KR') + '만';
+  return Math.round(v).toLocaleString('ko-KR');
+}
+function pct(x, d=1){ if(!isFinite(x)) return '-'; const v=(x*100); return (v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(d)+'%'; }
+function pctp(x){ return Math.abs(x*100).toFixed(1)+'%p'; }
+// 화면에 보이는 소수 1자리 % 끼리의 차이 (보이는 숫자로 뺄셈해도 맞도록)
+function dpp(a, b){ return (Math.round(a*1000) - Math.round(b*1000)) / 1000; }
+function cls(x){ return x>0 ? 'pos' : x<0 ? 'neg' : ''; }
+function shortName(n){ return n; }
+
+/* ---------- 데이터 정렬 ---------- */
+// 커버드콜·짝꿍이 모두 있는 달로 맞춘 구간 반환 {m, cc:{c,d}, pr:{c,d}|null}
+function commonMonths(cc, pr){
+  const a = H.series[cc];
+  if(!pr) return a.m.slice();
+  const b = H.series[pr], set = new Set(b.m);
+  return a.m.filter(m => set.has(m));
+}
+function sliceFrom(code, months){
+  const x = H.series[code], idx = new Map(x.m.map((m,i)=>[m,i]));
+  return {m:months, c:months.map(m=>x.c[idx.get(m)]), d:months.map(m=>x.d[idx.get(m)]), name:x.name, code};
+}
+
+/* ---------- 계산 엔진 (단위: 원, 소수 주 허용) ---------- */
+// 거치식. reinvest: 분배금 재투자 여부, tax: 분배금 원천징수율
+function simLump(x, amt, opt={}){
+  const tax = opt.tax || 0, re = !!opt.reinvest;
+  const c = x.c, d = x.d, n = c.length;
+  let sh = amt / c[0], cash = 0, cum = 0;
+  const value=[amt], cumDiv=[0], total=[amt], yearDiv={};
+  for(let t=1;t<n;t++){
+    const div = sh * d[t] * (1 - tax);
+    cum += div;
+    const y = x.m[t].slice(0,4); yearDiv[y] = (yearDiv[y]||0) + sh * d[t];
+    if(re) sh += div / c[t]; else cash += div;
+    value.push(sh * c[t]); cumDiv.push(cum); total.push(sh * c[t] + cash);
+  }
+  const end = n-1;
+  return {value, cumDiv, total, yearDiv, invested:amt,
+    priceRet: c[end]/c[0]-1,
+    distRatio: d.slice(1).reduce((s,v)=>s+v,0)/c[0],
+    endValue: value[end], divSum: cum, totalRet: total[end]/amt-1};
+}
+// 적립식: t=0..n-2 매달 말 매수, 분배금은 매수 전 보유분 기준
+function simDCA(x, monthly){
+  const c=x.c, d=x.d, n=c.length;
+  let sh=0, cash=0, inv=0;
+  const value=[], invested=[], total=[];
+  for(let t=0;t<n;t++){
+    const div = sh * d[t]; cash += div;
+    if(t < n-1){ sh += monthly / c[t]; inv += monthly; }
+    value.push(sh*c[t]); invested.push(inv); total.push(sh*c[t]+cash);
+  }
+  return {value, invested, total, divSum:cash, endValue:value[n-1], inv, totalRet: inv? total[n-1]/inv-1 : 0};
+}
+// 생활비 인출: 분배금 먼저, 부족분 매도, 남으면 재투자
+function simWithdraw(x, amt, y){
+  const c=x.c, d=x.d, n=c.length;
+  let sh = amt / c[0], depleted = null, sold = 0;
+  const value=[amt];
+  for(let t=1;t<n;t++){
+    if(sh <= 0){ value.push(0); continue; }
+    const net = sh * d[t] - y;
+    if(net < 0) sold += -net;
+    sh += net / c[t];
+    if(sh <= 0){ sh = 0; if(!depleted) depleted = x.m[t]; }
+    value.push(sh * c[t]);
+  }
+  return {value, endValue:value[n-1], depleted, sold};
+}
+function simDeposit(n, amt, ratePct){
+  const r = ratePct/100/12; const v=[];
+  for(let t=0;t<n;t++) v.push(amt*Math.pow(1+r,t));
+  return v;
+}
+function simDepositDCA(n, monthly, ratePct){
+  const r = ratePct/100/12; let bal=0; const v=[];
+  for(let t=0;t<n;t++){ bal *= (1+r); if(t<n-1) bal += monthly; v.push(bal); }
+  return v;
+}
+// 최근 12개월(진행 중인 마지막 달 제외) 주당 분배금 → 연 분배율
+function trailingYield(code){
+  const x = H.series[code], L = x.m.length-1;
+  const from = Math.max(0, L-12);
+  const months = L - from;               // 완결된 달 수
+  const sum = x.d.slice(from, L).reduce((s,v)=>s+v,0);
+  const annual = months > 0 ? sum * 12 / months : 0;
+  return {months, sum, annual, price:x.c[L], yld: annual / x.c[L], from:x.m[from], to:x.m[L-1]};
+}
+// 장세 분류 (진행 중인 마지막 달 제외)
+function regimes(cc, pr){
+  const out = {up:{n:0,cc:0,pr:0}, flat:{n:0,cc:0,pr:0}, down:{n:0,cc:0,pr:0}};
+  for(let t=1;t<cc.c.length-1;t++){
+    const rp = (pr.c[t]+pr.d[t])/pr.c[t-1]-1, rc = (cc.c[t]+cc.d[t])/cc.c[t-1]-1;
+    const k = rp > 0.03 ? 'up' : rp < -0.03 ? 'down' : 'flat';
+    out[k].n++; out[k].cc += rc; out[k].pr += rp;
+  }
+  for(const k in out){ const o=out[k]; o.ccAvg = o.n? o.cc/o.n : NaN; o.prAvg = o.n? o.pr/o.n : NaN; }
+  return out;
+}
+
+/* ---------- 차트 ---------- */
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function col(){ return {cc:cssVar('--cc'), pair:cssVar('--pair'), dep:cssVar('--dep'), grid:cssVar('--grid'), muted:cssVar('--muted'), text:cssVar('--text'), card:cssVar('--card')}; }
+function ds(label, data, color, o={}){
+  return Object.assign({label, data, borderColor:color, backgroundColor:color, borderWidth:2, pointRadius:0, pointHoverRadius:4, tension:0, fill:false}, o);
+}
+function lineChart(id, labels, datasets, o={}){
+  if(typeof Chart === 'undefined') return;
+  const C = col();
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type:'line', data:{labels, datasets},
+    options:{responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+(o.pctAxis? pct(c.parsed.y) : fmtKRW(c.parsed.y))}}},
+      scales:{
+        x:{grid:{display:false}, ticks:{color:C.muted, maxRotation:0, autoSkip:true, maxTicksLimit: innerWidth < 500 ? 4 : 7}, border:{color:C.grid}},
+        y:{grid:{color:C.grid}, border:{display:false}, ticks:{color:C.muted, callback:v=> o.pctAxis? (v*100).toFixed(0)+'%' : fmtAxis(v)}, beginAtZero:!!o.zero}
+      }}
+  });
+}
+function legend(id, items){
+  document.getElementById(id).innerHTML = items.map(([label,color,dash]) =>
+    `<span><i class="lg-line${dash?' dash':''}" style="border-color:${color}"></i>${label}</span>`).join('');
+}
+
+/* ---------- 렌더 ---------- */
+function td(v, kind){
+  if(v === null || v === undefined) return '<td>-</td>';
+  if(kind==='pct') return `<td class="${cls(v)}">${pct(v)}</td>`;
+  if(kind==='krw') return `<td>${fmtKRW(v)}</td>`;
+  if(kind==='krws') return `<td class="${cls(v)}">${v>0?'+':''}${fmtKRW(v)}</td>`;
+  return `<td>${v}</td>`;
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+
+let CTX = null; // 현재 계산 결과 (인쇄 요약용)
+
+function render(){
+  const info = PAIRS[state.e]; if(!info) return;
+  const prCode = info.grade === 'C' ? null : info.pair;
+  const allM = commonMonths(state.e, prCode);
+  // 시작월 후보: 마지막 달 직전까지
+  const opts = allM.slice(0, -1);
+  if(!opts.includes(state.s)) state.s = opts[0];
+  const ss = document.getElementById('startSel');
+  ss.innerHTML = opts.map(m=>`<option value="${m}"${m===state.s?' selected':''}>${m}</option>`).join('');
+  document.getElementById('startHelp').textContent = `기본값 ${opts[0]}: 두 ETF 데이터가 모두 있는 가장 이른 달`;
+
+  const months = allM.slice(allM.indexOf(state.s));
+  const N = months.length - 1;
+  const cc = sliceFrom(state.e, months), pr = prCode ? sliceFrom(prCode, months) : null;
+  const C = col(), last = months[N];
+  const ccN = '커버드콜', prN = '일반 ETF(짝꿍)';
+
+  // 선택 정보
+  let pb = `<span><i class="sw" style="background:${C.cc}"></i><b>${esc(cc.name)}</b> (${state.e})</span>`;
+  if(pr){
+    pb += `<span>vs</span><span><i class="sw" style="background:${C.pair}"></i><b>${esc(pr.name)}</b> (${prCode})`
+       + (info.grade==='B' ? `<span class="badge">근사 비교</span>` : '') + `</span>`;
+    if(info.grade==='B' && info.memo) pb += `<span class="memo" style="flex-basis:100%">⚠ ${esc(info.memo)}</span>`;
+  } else {
+    pb += `<span class="badge">공정한 비교 대상 없음</span><span class="memo" style="flex-basis:100%">${esc(info.memo||'주식+채권 혼합형')} — 단독 시뮬레이션만 표시합니다.</span>`;
+  }
+  pb += `<span><i class="sw" style="background:${C.dep}"></i>예금 ${state.r}%</span>`;
+  document.getElementById('pairBox').innerHTML = pb;
+
+  document.getElementById('periodBox').innerHTML =
+    `비교 기간: ${state.s} ~ ${last} (${N}개월)` +
+    `<small>${last}은 진행 중인 달(최근 종가). ${N < 12 ? '⚠ 1년 미만의 짧은 기간이라 결론을 내리기 어렵습니다.' : N < 36 ? '상장 후 기간이 짧아 한 번의 장세에 결과가 크게 좌우될 수 있습니다.' : ''}</small>`;
+
+  const notices = [];
+  if(!pr) notices.push('공정한 비교 대상 없음(주식+채권 혼합형) — 이 ETF는 주식과 채권을 섞은 상품이라 일반 주식형 ETF와 나란히 비교하면 오해를 부릅니다. 아래는 이 ETF 단독 시뮬레이션과 예금 비교만 보여줍니다.');
+  if(H.series[state.e].m[0] !== allM[0]) notices.push(`짝꿍 ETF 데이터가 ${allM[0]}부터 있어 그 이전 기간은 비교에서 제외했습니다.`);
+  document.getElementById('mainNotice').innerHTML = notices.map(esc).join('<br>');
+
+  const labels = months;
+  const out = {N, last, cc, pr, info};
+
+  /* 1. 거치식 + 7. 예금 */
+  const L1c = simLump(cc, state.a), L1p = pr ? simLump(pr, state.a) : null;
+  const dep = simDeposit(months.length, state.a, state.r);
+  const s1 = [ds(ccN+' 평가+누적분배', L1c.total, C.cc), ds(ccN+' 평가금액', L1c.value, C.cc, {borderDash:[5,4], borderWidth:1.5})];
+  const lg1 = [[ccN+' 평가금액+누적분배금', C.cc], [ccN+' 평가금액만', C.cc, 1]];
+  if(pr){ s1.push(ds(prN+' 평가+누적분배', L1p.total, C.pair), ds(prN+' 평가금액', L1p.value, C.pair, {borderDash:[5,4], borderWidth:1.5}));
+    lg1.push([prN+' 평가금액+누적분배금', C.pair], [prN+' 평가금액만', C.pair, 1]); }
+  s1.push(ds(`예금 ${state.r}%`, dep, C.dep, {borderDash:[2,3]})); lg1.push([`예금 ${state.r}% (세전)`, C.dep, 1]);
+  lineChart('c1', labels, s1); legend('lg1', lg1);
+  const s1b = [ds(ccN+' 누적 분배금', L1c.cumDiv, C.cc)], lg1b=[[ccN, C.cc]];
+  if(pr){ s1b.push(ds(prN+' 누적 분배금', L1p.cumDiv, C.pair)); lg1b.push([prN, C.pair]); }
+  lineChart('c1b', labels, s1b, {zero:true}); legend('lg1b', lg1b);
+  const depEnd = dep[N];
+  document.getElementById('t1').innerHTML =
+    `<thead><tr><th>${fmtKRW(state.a)} · ${N}개월 뒤</th><th>커버드콜</th>${pr?'<th>일반 ETF</th>':''}<th>예금 ${state.r}%</th></tr></thead><tbody>
+     <tr><td>원금 변화(평가금액)</td>${td(L1c.priceRet,'pct')}${pr?td(L1p.priceRet,'pct'):''}<td>-</td></tr>
+     <tr><td>끝 평가금액</td>${td(L1c.endValue,'krw')}${pr?td(L1p.endValue,'krw'):''}${td(depEnd,'krw')}</tr>
+     <tr><td>받은 분배금(세전)</td>${td(L1c.divSum,'krw')}${pr?td(L1p.divSum,'krw'):''}${td(depEnd-state.a,'krw')}</tr>
+     <tr><td>분배금 ÷ 원금</td>${td(L1c.distRatio,'pct')}${pr?td(L1p.distRatio,'pct'):''}<td>-</td></tr>
+     <tr><td><b>총수익</b></td>${td(L1c.totalRet,'pct')}${pr?td(L1p.totalRet,'pct'):''}${td(depEnd/state.a-1,'pct')}</tr></tbody>`;
+  let t1 = `같은 ${fmtKRW(state.a)}으로 ${state.s}부터 ${N}개월: `;
+  if(pr){
+    const diff = dpp(L1c.totalRet, L1p.totalRet);
+    t1 += `커버드콜은 분배금 ${fmtKRW(L1c.divSum)}을 받았${diff<0?'지만':'고'} 총수익은 ${pct(L1c.totalRet)}로 일반 ETF(${pct(L1p.totalRet)})보다 ${pctp(diff)} ${diff<0?'낮았':diff>0?'높았':'같았'}습니다.`;
+  } else {
+    t1 += `커버드콜은 분배금 ${fmtKRW(L1c.divSum)}을 받았고, 평가금액은 ${pct(L1c.priceRet)}, 총수익은 ${pct(L1c.totalRet)}입니다.`;
+  }
+  const depRet = depEnd/state.a-1;
+  let t1d = `같은 기간 예금 ${state.r}%(세전)는 ${pct(depRet)}로, 커버드콜보다 ${L1c.totalRet>=depRet?'낮았':'높았'}습니다` + (pr ? `(일반 ETF보다는 ${L1p.totalRet>=depRet?'낮음':'높음'}).` : '.');
+  document.getElementById('sum1').innerHTML = `<p>${esc(t1)}</p><p>${esc(t1d)}</p>`;
+  out.L1c=L1c; out.L1p=L1p; out.depEnd=depEnd; out.sum1=[t1,t1d];
+
+  /* 2. 적립식 */
+  const D2c = simDCA(cc, state.m), D2p = pr ? simDCA(pr, state.m) : null;
+  const dep2 = simDepositDCA(months.length, state.m, state.r);
+  const inv2 = D2c.invested;
+  const s2 = [ds(ccN+' 평가+누적분배', D2c.total, C.cc)], lg2=[[ccN+' 평가금액+누적분배금', C.cc]];
+  if(pr){ s2.push(ds(prN+' 평가+누적분배', D2p.total, C.pair)); lg2.push([prN+' 평가금액+누적분배금', C.pair]); }
+  s2.push(ds(`예금 ${state.r}%`, dep2, C.dep, {borderDash:[2,3]})); lg2.push([`예금 ${state.r}%`, C.dep, 1]);
+  s2.push(ds('넣은 돈(누적)', inv2, C.muted, {borderDash:[6,3], borderWidth:1.5})); lg2.push(['넣은 돈(누적)', C.muted, 1]);
+  lineChart('c2', labels, s2, {zero:true}); legend('lg2', lg2);
+  document.getElementById('t2').innerHTML =
+    `<thead><tr><th>매달 ${fmtKRW(state.m)} × ${N}회 = ${fmtKRW(D2c.inv)}</th><th>커버드콜</th>${pr?'<th>일반 ETF</th>':''}<th>예금</th></tr></thead><tbody>
+     <tr><td>끝 평가금액</td>${td(D2c.endValue,'krw')}${pr?td(D2p.endValue,'krw'):''}${td(dep2[N],'krw')}</tr>
+     <tr><td>원금 변화(평가금액 − 넣은 돈)</td>${td(D2c.endValue-D2c.inv,'krws')}${pr?td(D2p.endValue-D2p.inv,'krws'):''}<td>-</td></tr>
+     <tr><td>받은 분배금(세전)</td>${td(D2c.divSum,'krw')}${pr?td(D2p.divSum,'krw'):''}${td(dep2[N]-D2c.inv,'krw')}</tr>
+     <tr><td><b>총수익</b></td>${td(D2c.totalRet,'pct')}${pr?td(D2p.totalRet,'pct'):''}${td(D2c.inv?dep2[N]/D2c.inv-1:0,'pct')}</tr></tbody>`;
+  let t2 = `매달 ${fmtKRW(state.m)}씩 ${N}번(총 ${fmtKRW(D2c.inv)}) 샀다면: 커버드콜은 분배금 ${fmtKRW(D2c.divSum)} 포함 ${fmtKRW(D2c.total[N])}(${pct(D2c.totalRet)})`;
+  if(pr){ const df = dpp(D2c.totalRet, D2p.totalRet); t2 += `, 일반 ETF는 ${fmtKRW(D2p.total[N])}(${pct(D2p.totalRet)})로 커버드콜이 ${pctp(df)} ${df<0?'낮았':df>0?'높았':'같았'}습니다.`; }
+  else t2 += '입니다.';
+  document.getElementById('sum2').innerHTML = `<p>${esc(t2)}</p>`;
+  out.sum2 = t2;
+
+  /* 3. 분배금 사용법 */
+  const R3c = simLump(cc, state.a, {reinvest:true}), R3p = pr ? simLump(pr, state.a, {reinvest:true}) : null;
+  const s3a=[ds(ccN+' 재투자', R3c.value, C.cc)], lg3a=[[ccN+' 재투자', C.cc]];
+  if(pr){ s3a.push(ds(prN+' 재투자', R3p.value, C.pair)); lg3a.push([prN+' 재투자', C.pair]); }
+  const base = months.map(()=>state.a);
+  s3a.push(ds('원금', base, C.muted, {borderDash:[6,3], borderWidth:1})); lg3a.push(['원금', C.muted, 1]);
+  lineChart('c3a', labels, s3a); legend('lg3a', lg3a);
+  const s3b=[ds(ccN+' 인출 후 평가금액', L1c.value, C.cc)], lg3b=[[ccN+' 남은 평가금액', C.cc]];
+  if(pr){ s3b.push(ds(prN+' 인출 후 평가금액', L1p.value, C.pair)); lg3b.push([prN+' 남은 평가금액', C.pair]); }
+  s3b.push(ds('원금', base, C.muted, {borderDash:[6,3], borderWidth:1})); lg3b.push(['원금', C.muted, 1]);
+  lineChart('c3b', labels, s3b); legend('lg3b', lg3b);
+  const below = v => v.filter((x,i)=>i>0 && x < state.a).length;
+  const minOf = v => { let mi=0; v.forEach((x,i)=>{ if(x<v[mi]) mi=i; }); return {v:v[mi], m:months[mi]}; };
+  const mc = minOf(L1c.value), mp = pr ? minOf(L1p.value) : null;
+  document.getElementById('t3').innerHTML =
+    `<thead><tr><th>${fmtKRW(state.a)} · ${N}개월</th><th>커버드콜</th>${pr?'<th>일반 ETF</th>':''}</tr></thead><tbody>
+     <tr><td>(a) 재투자 끝 평가금액</td>${td(R3c.endValue,'krw')}${pr?td(R3p.endValue,'krw'):''}</tr>
+     <tr><td>(a) 재투자 총수익</td>${td(R3c.endValue/state.a-1,'pct')}${pr?td(R3p.endValue/state.a-1,'pct'):''}</tr>
+     <tr><td>(b) 꺼내 쓴 분배금 합</td>${td(L1c.divSum,'krw')}${pr?td(L1p.divSum,'krw'):''}</tr>
+     <tr><td>(b) 월평균 꺼내 쓴 돈</td>${td(L1c.divSum/N,'krw')}${pr?td(L1p.divSum/N,'krw'):''}</tr>
+     <tr><td>(b) 끝 평가금액(원금 대비)</td><td class="${cls(L1c.priceRet)}">${fmtKRW(L1c.endValue)} (${pct(L1c.priceRet)})</td>${pr?`<td class="${cls(L1p.priceRet)}">${fmtKRW(L1p.endValue)} (${pct(L1p.priceRet)})</td>`:''}</tr>
+     <tr><td>(b) 원금 밑돈 달 / 최저</td><td>${below(L1c.value)}개월 / ${fmtKRW(mc.v)} (${mc.m})</td>${pr?`<td>${below(L1p.value)}개월 / ${fmtKRW(mp.v)} (${mp.m})</td>`:''}</tr></tbody>`;
+  const kept = L1c.priceRet >= 0;
+  let t3 = `분배금을 전부 생활비로 쓰면(b), 커버드콜은 ${N}개월간 월평균 ${fmtKRW(L1c.divSum/N)}을 꺼내 쓰고 평가금액은 ${fmtKRW(L1c.endValue)}(${pct(L1c.priceRet)})로 원금이 ${kept?'유지됐':'줄었'}습니다` + (below(L1c.value) ? `(원금 밑돈 달 ${below(L1c.value)}개월).` : '.');
+  if(pr) t3 += ` 일반 ETF는 월평균 ${fmtKRW(L1p.divSum/N)}을 꺼내 쓰고 평가금액 ${fmtKRW(L1p.endValue)}(${pct(L1p.priceRet)})입니다.`;
+  let t3a = `모두 재투자했다면(a) 커버드콜 ${fmtKRW(R3c.endValue)}(${pct(R3c.endValue/state.a-1)})` + (pr ? `, 일반 ETF ${fmtKRW(R3p.endValue)}(${pct(R3p.endValue/state.a-1)}).` : '.');
+  document.getElementById('sum3').innerHTML = `<p>${esc(t3)}</p><p>${esc(t3a)}</p>`;
+  out.sum3 = [t3, t3a]; out.R3c=R3c; out.R3p=R3p;
+
+  /* 4. 은퇴 생활비 역산 */
+  const ty = trailingYield(state.e), typ = pr ? trailingYield(prCode) : null;
+  const need = ty.yld > 0 ? state.y*12 / ty.yld : Infinity;
+  const needNet = need / (1 - TAX);
+  let t4a = ty.yld > 0
+    ? `최근 ${ty.months}개월(${ty.from}~${ty.to}) 실제 분배금 주당 ${Math.round(ty.sum).toLocaleString('ko-KR')}원${ty.months<12?`(12개월로 환산 ${Math.round(ty.annual).toLocaleString('ko-KR')}원)`:''} ÷ 현재가 ${Math.round(ty.price).toLocaleString('ko-KR')}원 = 연 ${(ty.yld*100).toFixed(1)}%. 월 ${fmtKRW(state.y)}(세전)을 분배금만으로 받으려면 약 ${fmtKRW(need)}이 필요합니다(일반계좌 15.4% 원천징수 후 ${fmtKRW(state.y)}이면 약 ${fmtKRW(needNet)}).`
+    : '최근 12개월 분배금 기록이 없어 필요 투자금을 계산할 수 없습니다.';
+  if(typ && typ.yld > 0) t4a += ` 참고: 일반 ETF는 분배율 연 ${(typ.yld*100).toFixed(1)}%라 분배금만으로는 ${fmtKRW(state.y*12/typ.yld)}이 필요해, 아래에선 같은 금액을 넣고 부족분을 팔아서 마련한다고 가정합니다.`;
+  if(ty.months < 12 && ty.yld > 0) t4a += ` ⚠ 분배 기록이 ${ty.months}개월뿐이라 연환산 값은 불확실합니다.`;
+  document.getElementById('sum4a').innerHTML = `<p>${esc(t4a)}</p>`;
+  out.need = need; out.ty = ty;
+  if(isFinite(need)){
+    const W4c = simWithdraw(cc, need, state.y), W4p = pr ? simWithdraw(pr, need, state.y) : null;
+    const s4=[ds(ccN, W4c.value, C.cc)], lg4=[[ccN+' 평가금액', C.cc]];
+    if(pr){ s4.push(ds(prN, W4p.value, C.pair)); lg4.push([prN+' 평가금액(분배금+매도로 마련)', C.pair]); }
+    s4.push(ds('처음 투자금', months.map(()=>need), C.muted, {borderDash:[6,3], borderWidth:1})); lg4.push(['처음 투자금', C.muted, 1]);
+    lineChart('c4', labels, s4, {zero:true}); legend('lg4', lg4);
+    document.getElementById('t4').innerHTML =
+      `<thead><tr><th>${fmtKRW(need)} 투자, 매달 ${fmtKRW(state.y)} 인출 · ${N}개월</th><th>커버드콜</th>${pr?'<th>일반 ETF</th>':''}</tr></thead><tbody>
+       <tr><td>꺼낸 생활비 합</td>${td(state.y*N,'krw')}${pr?td(state.y*N,'krw'):''}</tr>
+       <tr><td>부족해서 판 금액</td>${td(W4c.sold,'krw')}${pr?td(W4p.sold,'krw'):''}</tr>
+       <tr><td>끝 평가금액</td>${td(W4c.endValue,'krw')}${pr?td(W4p.endValue,'krw'):''}</tr>
+       <tr><td>처음 투자금 대비</td>${td(W4c.endValue/need-1,'pct')}${pr?td(W4p.endValue/need-1,'pct'):''}</tr></tbody>`;
+    let t4 = `${fmtKRW(need)}을 ${state.s}에 넣고 매달 ${fmtKRW(state.y)}씩 ${N}개월 꺼냈다면 끝 평가금액은 커버드콜 ${fmtKRW(W4c.endValue)}(${pct(W4c.endValue/need-1)})`;
+    if(pr){ t4 += `, 일반 ETF ${fmtKRW(W4p.endValue)}(${pct(W4p.endValue/need-1)})입니다. ` + (W4c.endValue < W4p.endValue ? '같은 생활비를 꺼냈을 때 이 기간엔 일반 ETF를 팔아 쓰는 쪽이 더 많이 남았습니다.' : '같은 생활비를 꺼냈을 때 이 기간엔 커버드콜 쪽이 더 많이 남았습니다.'); }
+    else t4 += '입니다.';
+    if(W4c.depleted) t4 += ` 커버드콜은 ${W4c.depleted}에 바닥났습니다.`;
+    if(W4p && W4p.depleted) t4 += ` 일반 ETF는 ${W4p.depleted}에 바닥났습니다.`;
+    t4 += ' (과거 분배금은 현재 분배율과 다를 수 있음)';
+    document.getElementById('sum4').innerHTML = `<p>${esc(t4)}</p>`;
+    out.sum4 = t4;
+  }
+
+  /* 5. 세금 */
+  const T5 = [cc, pr].filter(Boolean).map(x => ({gen:simLump(x, state.a, {reinvest:true, tax:TAX}), isa:simLump(x, state.a, {reinvest:true})}));
+  const yrMax = o => Object.entries(o.yearDiv).sort((a,b)=>b[1]-a[1])[0] || ['-',0];
+  const ymc = yrMax(T5[0].isa), ymp = pr ? yrMax(T5[1].isa) : null;
+  document.getElementById('t5').innerHTML =
+    `<thead><tr><th>${fmtKRW(state.a)} · 재투자 · ${N}개월</th><th>커버드콜</th>${pr?'<th>일반 ETF</th>':''}</tr></thead><tbody>
+     <tr><td>ISA·연금(과세이연) 끝 평가금액</td>${T5.map(o=>td(o.isa.endValue,'krw')).join('')}</tr>
+     <tr><td>일반계좌(15.4% 원천징수) 끝 평가금액</td>${T5.map(o=>td(o.gen.endValue,'krw')).join('')}</tr>
+     <tr><td>차이(세금 효과)</td>${T5.map(o=>td(o.gen.endValue-o.isa.endValue,'krws')).join('')}</tr>
+     <tr><td>기간 중 낸 분배금 세금</td>${T5.map(o=>td(o.gen.divSum/(1-TAX)*TAX,'krw')).join('')}</tr>
+     <tr><td>한 해 최대 분배금(세전, 연도)</td><td>${fmtKRW(ymc[1])} (${ymc[0]})</td>${pr?`<td>${fmtKRW(ymp[1])} (${ymp[0]})</td>`:''}</tr></tbody>`;
+  const gapC = T5[0].isa.endValue - T5[0].gen.endValue;
+  let t5 = `일반계좌에서는 분배금 세금 때문에 커버드콜 끝 평가금액이 ISA·연금계좌보다 ${fmtKRW(gapC)}(${pctp(gapC/state.a)}) 적습니다`;
+  if(pr){ const gapP = T5[1].isa.endValue - T5[1].gen.endValue; t5 += `(일반 ETF는 ${fmtKRW(gapP)}). 분배금이 많은 커버드콜일수록 절세 계좌의 효과가 큽니다.`; }
+  else t5 += '.';
+  t5 += ymc[1] > 2e7 ? ` ⚠ ${ymc[0]}년 분배금이 ${fmtKRW(ymc[1])}으로 금융소득종합과세 기준(2,000만원)을 넘습니다(다른 금융소득 제외).` : ` 이 금액에서는 한 해 분배금이 최대 ${fmtKRW(ymc[1])}으로 금융소득종합과세 기준(연 2,000만원) 이하입니다(다른 금융소득 제외).`;
+  document.getElementById('sum5').innerHTML = `<p>${esc(t5)}</p>`;
+
+  /* 6. 장세별 */
+  if(pr){
+    const R = regimes(cc, pr);
+    const keys = [['up','상승 달'],['flat','횡보 달'],['down','하락 달']];
+    const lb = keys.map(([k,l])=>`${l} (${R[k].n}개월)`);
+    if(charts.c6) charts.c6.destroy();
+    if(typeof Chart !== 'undefined'){
+      charts.c6 = new Chart(document.getElementById('c6'), {type:'bar',
+        data:{labels:lb, datasets:[
+          {label:ccN, data:keys.map(([k])=>R[k].ccAvg), backgroundColor:C.cc, borderRadius:4, borderSkipped:false, borderColor:C.card, borderWidth:{left:1,right:1}},
+          {label:prN, data:keys.map(([k])=>R[k].prAvg), backgroundColor:C.pair, borderRadius:4, borderSkipped:false, borderColor:C.card, borderWidth:{left:1,right:1}}]},
+        options:{responsive:true, maintainAspectRatio:false, animation:false,
+          plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+pct(c.parsed.y,2)}}},
+          scales:{x:{grid:{display:false}, ticks:{color:C.muted}}, y:{grid:{color:C.grid}, border:{display:false}, ticks:{color:C.muted, callback:v=>(v*100).toFixed(1)+'%'}}}}});
+    }
+    legend('lg6', [[ccN+' 평균 월 총수익률', C.cc],[prN+' 평균 월 총수익률', C.pair]]);
+    document.getElementById('t6').innerHTML =
+      `<thead><tr><th>구간</th><th>달 수</th><th>커버드콜</th><th>일반 ETF</th><th>차이</th></tr></thead><tbody>` +
+      keys.map(([k,l])=>`<tr><td>${l}</td><td>${R[k].n}</td>${R[k].n?td(R[k].ccAvg,'pct')+td(R[k].prAvg,'pct')+(d=>`<td class="${cls(d)}">${(d>=0?'+':'−')+pctp(d)}</td>`)(dpp(R[k].ccAvg,R[k].prAvg)):'<td>-</td><td>-</td><td>-</td>'}</tr>`).join('') + '</tbody>';
+    const parts = keys.filter(([k])=>R[k].n).map(([k,l])=>{ const df=dpp(R[k].ccAvg, R[k].prAvg); return `${l}(${R[k].n}개월) 평균 커버드콜 ${pct(R[k].ccAvg)} vs 일반 ${pct(R[k].prAvg)} → 커버드콜이 ${pctp(df)} ${df>=0?'높음':'낮음'}`; });
+    // 통념 검증
+    const checks = [];
+    if(R.up.n)   checks.push({ok:R.up.ccAvg < R.up.prAvg, txt:'급등장(상승 달)에 불리'});
+    if(R.flat.n) checks.push({ok:R.flat.ccAvg > R.flat.prAvg, txt:'횡보장에 상대적으로 유리'});
+    if(R.down.n) checks.push({ok:R.down.ccAvg > R.down.prAvg, txt:'하락장에 상대적으로 유리'});
+    const okL = checks.filter(c=>c.ok).map(c=>c.txt), noL = checks.filter(c=>!c.ok).map(c=>c.txt);
+    let verdict;
+    if(!checks.length) verdict = '분류할 달이 없습니다.';
+    else if(!noL.length) verdict = `이 기간 데이터는 "커버드콜은 ${okL.join(', ')}"하다는 설명과 맞습니다.`;
+    else if(!okL.length) verdict = `이 기간 데이터는 "커버드콜은 ${noL.join(', ')}"하다는 설명과 맞지 않습니다.`;
+    else verdict = `이 기간 데이터에서 "${okL.join(', ')}"은 맞았지만, "${noL.join(', ')}"은 맞지 않았습니다.`;
+    const small = keys.filter(([k])=>R[k].n>0 && R[k].n<3).map(([,l])=>l);
+    if(small.length) verdict += ` (${small.join(', ')}는 3개월 미만이라 우연일 수 있습니다)`;
+    if(!R.down.n) verdict += ' 이 기간엔 −3% 아래로 떨어진 달이 없어 하락장 성적은 확인할 수 없습니다.';
+    document.getElementById('sum6').innerHTML = `<p>${esc(verdict)}</p><p style="font-weight:500">${esc(parts.join(' / '))}</p>`;
+    out.sum6 = verdict; out.R = R;
+    document.getElementById('c6').parentElement.style.display = '';
+  } else {
+    if(charts.c6){ charts.c6.destroy(); delete charts.c6; }
+    document.getElementById('c6').parentElement.style.display = 'none';
+    document.getElementById('lg6').innerHTML = '';
+    document.getElementById('t6').innerHTML = '';
+    document.getElementById('sum6').innerHTML = '<p>공정한 비교 대상 없음(주식+채권 혼합형) — 장세를 나눌 기준(짝꿍 ETF)이 없어 이 분석은 생략합니다.</p>';
+    out.sum6 = null;
+  }
+
+  if(typeof Chart === 'undefined') document.getElementById('mainNotice').innerHTML += (notices.length?'<br>':'') + '차트 라이브러리를 불러오지 못해 그래프는 표시되지 않습니다(표와 요약은 정상).';
+  CTX = out;
+  syncURL();
+}
+
+/* ---------- 인쇄 요약 ---------- */
+function snap(id){
+  const ch = charts[id]; if(!ch) return '';
+  const src = ch.canvas, cv = document.createElement('canvas');
+  cv.width = src.width; cv.height = src.height;
+  const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,cv.width,cv.height); g.drawImage(src,0,0);
+  return cv.toDataURL('image/png');
+}
+function buildPrint(){
+  const root = document.documentElement, wasDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  if(wasDark){ root.setAttribute('data-theme','light'); render(); }
+  const o = CTX; if(!o) return;
+  const pr = o.pr;
+  const rows = `<table class="res"><thead><tr><th></th><th>커버드콜</th>${pr?'<th>일반 ETF</th>':''}<th>예금 ${state.r}%</th></tr></thead><tbody>
+    <tr><td>원금 변화</td>${td(o.L1c.priceRet,'pct')}${pr?td(o.L1p.priceRet,'pct'):''}<td>-</td></tr>
+    <tr><td>받은 분배금(세전)</td>${td(o.L1c.divSum,'krw')}${pr?td(o.L1p.divSum,'krw'):''}${td(o.depEnd-state.a,'krw')}</tr>
+    <tr><td>총수익(거치, 분배금 현금)</td>${td(o.L1c.totalRet,'pct')}${pr?td(o.L1p.totalRet,'pct'):''}${td(o.depEnd/state.a-1,'pct')}</tr>
+    <tr><td>총수익(분배금 재투자)</td>${td(o.R3c.endValue/state.a-1,'pct')}${pr?td(o.R3p.endValue/state.a-1,'pct'):''}<td>-</td></tr>
+    ${o.R?['up','flat','down'].map((k,i)=>`<tr><td>${['상승','횡보','하락'][i]} 달 평균(${o.R[k].n}개월)</td>${o.R[k].n?td(o.R[k].ccAvg,'pct')+td(o.R[k].prAvg,'pct'):'<td>-</td><td>-</td>'}<td>-</td></tr>`).join(''):''}
+    </tbody></table>`;
+  const sums = [...o.sum1, o.sum3[0], o.sum4, o.sum6].filter(Boolean).map(s=>`<p>${esc(s)}</p>`).join('');
+  document.getElementById('printSum').innerHTML =
+    `<h1>커버드콜 vs 일반 ETF 시뮬레이션 요약</h1>
+     <div class="cond">${esc(o.cc.name)} (${o.cc.code})${pr?` vs ${esc(pr.name)} (${pr.code})${o.info.grade==='B'?' [근사 비교: '+esc(o.info.memo||'')+']':''}`:' — 공정한 비교 대상 없음(혼합형), 단독'}<br>
+     거치 ${fmtKRW(state.a)} · 적립 월 ${fmtKRW(state.m)} · 생활비 월 ${fmtKRW(state.y)} · 예금 ${state.r}%(세전)</div>
+     <div class="period">비교 기간: ${state.s} ~ ${o.last} (${o.N}개월)</div>
+     ${rows}<div class="summary">${sums}</div>
+     <div class="pimgs"><img src="${snap('c1')}" alt="거치식 평가금액"><img src="${snap(o.R?'c6':'c3b')}" alt=""></div>
+     <div class="pfoot">세전, 수수료·보수는 종가에 반영된 것으로 간주, 소수 주 매매 허용, 원주가 기준. 마지막 달은 진행 중(최근 종가). ${esc(location.href)}<br>과거 실적 기반 시뮬레이션이며 미래 수익을 보장하지 않습니다. 투자 권유가 아닙니다.</div>`;
+  if(wasDark){ root.removeAttribute('data-theme'); render(); }
+}
+window.addEventListener('beforeprint', buildPrint);
+
+/* ---------- URL ---------- */
+function syncURL(){
+  const p = new URLSearchParams({e:state.e, s:state.s, a:state.a, m:state.m, y:state.y, r:state.r});
+  history.replaceState(null, '', location.pathname + '?' + p.toString());
+}
+function readURL(){
+  const p = new URLSearchParams(location.search);
+  if(p.get('e') && PAIRS[p.get('e')]) state.e = p.get('e');
+  if(p.get('s')) state.s = p.get('s');
+  for(const k of ['a','m','y','r']){ const v = parseFloat(p.get(k)); if(isFinite(v) && v >= 0) state[k] = v; }
+}
+
+/* ---------- 입력 ---------- */
+function fillEtfList(q){
+  const sel = document.getElementById('etfSel');
+  q = (q||'').trim().toLowerCase().replace(/\s+/g,'');
+  const list = H.pairs.map(p => ({code:p.code, name:H.series[p.code].name, g:p.grade}))
+    .filter(x => !q || x.name.toLowerCase().replace(/\s+/g,'').includes(q) || x.code.toLowerCase().includes(q))
+    .sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  if(q && !list.some(x=>x.code===state.e) && list.length) { /* 현재 선택이 걸러지면 첫 항목으로 */ }
+  sel.innerHTML = list.map(x=>`<option value="${x.code}"${x.code===state.e?' selected':''}>${esc(x.name)} (${x.code})${x.g==='C'?' · 혼합형':x.g==='B'?' · 근사':''}</option>`).join('')
+    || '<option value="">검색 결과 없음</option>';
+  return list;
+}
+function helpers(){
+  document.getElementById('hAmt').textContent = '= ' + fmtKRW(state.a);
+  document.getElementById('hMonthly').textContent = '= ' + fmtKRW(state.m);
+  document.getElementById('hLiving').textContent = '= ' + fmtKRW(state.y);
+}
+function bind(){
+  const q = document.getElementById('etfQ'), sel = document.getElementById('etfSel');
+  q.addEventListener('input', () => {
+    const list = fillEtfList(q.value);
+    if(list.length && !list.some(x=>x.code===state.e)){ state.e = list[0].code; state.s = null; sel.value = state.e; render(); }
+  });
+  sel.addEventListener('change', () => { if(!sel.value) return; state.e = sel.value; state.s = null; render(); });
+  document.getElementById('startSel').addEventListener('change', e => { state.s = e.target.value; render(); });
+  const nums = {inAmt:'a', inMonthly:'m', inLiving:'y', inRate:'r'};
+  for(const [id,k] of Object.entries(nums)){
+    const el = document.getElementById(id); el.value = state[k];
+    el.addEventListener('change', () => { const v = parseFloat(el.value); state[k] = isFinite(v) && v >= 0 ? v : DEFAULTS[k]; el.value = state[k]; helpers(); render(); });
+  }
+  document.getElementById('btnShare').addEventListener('click', async () => {
+    const msg = document.getElementById('shareMsg');
+    try { await navigator.clipboard.writeText(location.href); msg.textContent = '링크를 복사했습니다.'; }
+    catch(e){ window.prompt('이 링크를 복사하세요', location.href); }
+  });
+  document.getElementById('btnPrint').addEventListener('click', () => window.print());
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+}
+
+fetch('history.json').then(r => r.json()).then(h => {
+  H = h;
+  h.pairs.forEach(p => PAIRS[p.code] = p);
+  readURL();
+  fillEtfList('');
+  bind(); helpers(); render();
+  document.getElementById('dataInfo').textContent = `데이터: history.json (생성 ${h.generated}, 커버드콜 ${h.pairs.length}종). 한국투자증권 Open API 월봉 종가·예탁원 분배금 기준.`;
+}).catch(err => {
+  document.getElementById('pairBox').textContent = '데이터를 불러오지 못했습니다.';
+  console.warn(err);
+});
+
+// 검증·디버그용
+window.SIM = {simLump, simDCA, simWithdraw, regimes, sliceFrom, commonMonths, trailingYield, get H(){return H;}};
+</script>
+</body>
+</html>
