@@ -1,0 +1,74 @@
+/* 세 페이지(index / overview / simulator) 공통: 색 토큰·다크모드·헤더·내비·배지·면책 띠 */
+:root{
+  color-scheme: light;
+  --bg:#f4f6f9; --card:#fff; --header:#0f172a; --text:#1e293b; --muted:#64748b;
+  --border:#e2e8f0; --soft:#f1f5f9; --accent:#2563eb;
+  --blue:#3b82f6; --blue-soft:#dbeafe;
+  /* 계열 색: 커버드콜(주황) / 짝꿍 일반 ETF(보라) / 예금(초록) — 모든 페이지 고정.
+     빨강·파랑은 부호 전용이라 계열 색으로 쓰지 않는다. */
+  --cc:#eb6834; --pair:#7c3aed; --dep:#1baf7a;
+  /* 수익 부호(한국식): 상승·플러스 = 빨강 / 하락·마이너스 = 파랑 (세 페이지 공통) */
+  --pos:#dc2626; --neg:#1d4ed8;
+  --grid:rgba(100,116,139,.18);
+  --warn-bg:#fff7ed; --warn-bd:#fdba74; --warn-tx:#9a3412;
+  --gap:16px; --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0b1120; --card:#151c2c; --header:#020617; --text:#e2e8f0; --muted:#94a3b8;
+    --border:#273248; --soft:#1c2539; --accent:#60a5fa;
+    --blue:#60a5fa; --blue-soft:#1e3a5f;
+    --cc:#d95926; --pair:#9085e9; --dep:#199e70;
+    --pos:#f87171; --neg:#60a5fa;
+    --grid:rgba(148,163,184,.16);
+    --warn-bg:#2a1a0e; --warn-bd:#9a3412; --warn-tx:#fdba74;
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;}
+.wrap{max-width:1180px;margin:0 auto;padding:var(--gap);}
+a{color:var(--accent);}
+.neg{color:var(--neg);} .pos{color:var(--pos);}
+
+/* 공통 내비게이션 */
+.site-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:12px;}
+.site-nav .brand{font-weight:800;font-size:15px;color:var(--text);text-decoration:none;margin-right:4px;}
+.site-nav .tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:3px;}
+.site-nav .tabs a{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:7px;white-space:nowrap;}
+.site-nav .tabs a:hover{color:var(--text);}
+.site-nav .tabs a[aria-current="page"]{background:var(--header);color:#fff;}
+
+/* 공통 헤더·카드 */
+.hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
+.hdr h1{font-size:19px;font-weight:700;}
+.hdr .sub{font-size:12.5px;color:rgba(255,255,255,.72);margin-top:6px;line-height:1.65;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:var(--gap);}
+
+/* 배지 */
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid var(--warn-bd);background:var(--warn-bg);color:var(--warn-tx);margin-left:4px;white-space:nowrap;vertical-align:1px;}
+.badge.neutral{border-color:var(--border);background:var(--soft);color:var(--muted);}
+
+/* "?" 용어 툴팁 (마우스 올림·탭(포커스) 모두 동작) */
+.q{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--border);background:var(--soft);color:var(--muted);font-size:11px;font-weight:700;cursor:help;vertical-align:2px;margin-left:4px;padding:0;font-family:inherit;}
+.q .tip{display:none;position:absolute;z-index:30;top:24px;left:50%;transform:translateX(-50%);width:min(280px,80vw);background:var(--header);color:#fff;font-size:12px;font-weight:400;line-height:1.6;text-align:left;padding:9px 11px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);white-space:normal;}
+.q:hover .tip,.q:focus .tip,.q:focus-within .tip{display:block;}
+.q .tip b{color:#fde68a;}
+
+/* 하단 안내 — 고정하지 않고 페이지 맨 아래(본문을 가리지 않음) */
+.disclaimer{background:var(--header);color:#fff;font-size:12.5px;font-weight:600;text-align:center;padding:12px 16px;line-height:1.5;border-radius:var(--r);margin-bottom:var(--gap);}
+
+@media(max-width:700px){
+  .wrap{padding:10px;} .hdr{padding:14px 16px;} .card{padding:14px 12px;}
+  .hdr h1{font-size:17px;}
+  .site-nav .tabs{width:100%;}
+  .site-nav .tabs a{flex:1;text-align:center;padding:6px 4px;font-size:12.5px;}
+  .disclaimer{font-size:11px;}
+}
+@media print{
+  .site-nav{display:none;}
+}
+@media(max-width:700px){
+  /* 좁은 화면: 툴팁을 화면 아래쪽 시트로 띄워 가로 넘침 방지 */
+  .q .tip{position:fixed;left:12px;right:12px;bottom:12px;top:auto;transform:none;width:auto;}
+}

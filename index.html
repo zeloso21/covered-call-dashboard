@@ -4,12 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>커버드콜 ETF 월배당 정보</title>
+<link rel="stylesheet" href="site.css">
 <style>
-:root{
-  --bg:#f4f6f9; --card:#fff; --header:#0f172a; --text:#1e293b; --muted:#64748b;
-  --border:#e2e8f0; --blue:#3b82f6; --blue-soft:#dbeafe;
-  --gap:16px; --r:10px;
-}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
 .wrap{max-width:1180px;margin:0 auto;padding:var(--gap);}
@@ -28,14 +24,28 @@ th.active{color:var(--blue);}
 th.active::after{content:'';display:inline-block;width:0;height:0;margin-left:4px;border:4px solid transparent;vertical-align:middle;}
 th.active.desc::after{border-top-color:var(--blue);}
 th.active.asc::after{border-bottom-color:var(--blue);}
-.yield{font-weight:700;color:var(--blue);}
+.yield{font-weight:700;color:var(--text);}
 .sum-cell{font-weight:600;}
 .mo-zero{color:var(--muted);}
 .month-td{min-width:70px;}
 th.grp,td.grp-start{border-left:1px solid var(--border);}
 .spark{display:inline-flex;align-items:flex-end;gap:2px;height:26px;vertical-align:middle;}
-.spark i{display:inline-block;width:6px;background:var(--blue);border-radius:2px 2px 0 0;min-height:2px;}
+.spark i{display:inline-block;width:6px;background:var(--cc);border-radius:2px 2px 0 0;min-height:2px;}
 .spark i.zero{background:var(--border);}
+.filters{display:flex;flex-direction:column;gap:10px;}
+.filters .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.filters .row > .k{font-size:12px;color:var(--muted);font-weight:600;min-width:62px;}
+.filters input[type=search]{flex:1 1 220px;font:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);}
+.chip{font:inherit;font-size:12.5px;padding:4px 11px;border-radius:16px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;}
+.chip[aria-pressed="true"]{background:var(--header);border-color:var(--header);color:#fff;}
+.chip .n{color:var(--muted);font-size:11px;margin-left:3px;}
+.chip[aria-pressed="true"] .n{color:rgba(255,255,255,.7);}
+.filters .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;}
+.filters .meta button{font:inherit;font-size:12px;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;}
+td:first-child a{color:var(--text);text-decoration:none;font-weight:600;}
+td:first-child a:hover{color:var(--accent);text-decoration:underline;}
+td:first-child .badge{margin:2px 4px 0 0;font-size:10.5px;}
+.empty{text-align:center !important;color:var(--muted);padding:24px !important;position:static !important;box-shadow:none !important;}
 .foot{font-size:11px;color:var(--muted);line-height:1.7;padding:4px 2px 20px;}
 @media(max-width:640px){
   .wrap{padding:10px;} .hdr{padding:14px 16px;} .card{padding:12px 10px;}
@@ -50,10 +60,17 @@ th.grp,td.grp-start{border-left:1px solid var(--border);}
 </head>
 <body>
 <div class="wrap">
-  <a href="simulator.html" style="display:block;margin:0 0 12px;font-weight:600;color:var(--blue);text-decoration:none;">▶ 커버드콜 vs 일반 ETF 시뮬레이터</a>
+  <nav class="site-nav" aria-label="페이지"><a class="brand" href="./">커버드콜 ETF</a><div class="tabs"><a href="./" aria-current="page">배당 정보표</a><a href="overview.html">한눈에 보기</a><a href="simulator.html">시뮬레이터</a></div></nav>
   <div class="hdr">
     <h1>커버드콜 ETF 월배당 정보</h1>
     <div class="sub" id="hdrSub">불러오는 중…</div>
+  </div>
+
+  <div class="card filters" id="filters">
+    <div class="row"><input type="search" id="q" placeholder="종목명·코드 검색 (예: 나스닥, 200, 441680)" autocomplete="off" aria-label="종목명·코드 검색"></div>
+    <div class="row" id="amcChips"><span class="k">운용사</span></div>
+    <div class="row" id="grpChips"><span class="k">기초자산</span></div>
+    <div class="meta"><span id="count"></span><span>기초자산은 <b>종목명 기준</b> 자동 분류(실제 보유 종목과 다를 수 있음)</span><button type="button" id="reset">필터 해제</button></div>
   </div>
 
   <div class="card">
@@ -67,12 +84,83 @@ th.grp,td.grp-start{border-left:1px solid var(--border);}
   </div>
 
   <div class="foot" id="foot"></div>
+  <div class="disclaimer">과거 실적 기반이며 미래 수익을 보장하지 않습니다. 투자 권유가 아닙니다.</div>
 </div>
+<script src="cc-core.js"></script>
 
 <script>
 let DATA = [];
 let MONTH_COLS = []; // [{key:'m0', ym:'2026-08', label:'8월'}, ...] newest→oldest
 let sortKey = 'yield', sortDir = 'desc';
+// 필터 상태 (URL 쿼리 q / amc / grp / sort / dir 와 동기화)
+const F = {q:'', amc:new Set(), grp:new Set()};
+let LISTED = {};   // code -> 첫 데이터 월(history.json). 상장 전 0원 달을 '미지급'으로 오인하지 않기 위함
+const SORT_KEYS = ['name','price','sum','yield','month'];
+
+// 배지: '미지급 월 있음' = 상장 다음 달 이후 6개월 중 0원 달 존재
+//       '배당 감소 추세' = 6개월이 모두 상장 후일 때, 최근 3개월 평균이 이전 3개월 평균보다 15% 이상 적음
+function flagsOf(r){
+  const first = LISTED[r.code];
+  const asc = [...r.monthly_divs].sort((a, b) => a.month.localeCompare(b.month));
+  const live = asc.filter(d => !first || d.month > first);
+  const unpaid = live.filter(d => d.amount === 0).map(d => d.month);
+  let decline = null;
+  if (asc.length === 6 && live.length === 6) {
+    const prev = (asc[0].amount + asc[1].amount + asc[2].amount) / 3;
+    const last = (asc[3].amount + asc[4].amount + asc[5].amount) / 3;
+    if (prev > 0 && last < prev * 0.85) decline = (last / prev - 1) * 100;
+  }
+  return {unpaid, decline};
+}
+function matches(r){
+  if (F.amc.size && !F.amc.has(r.amc)) return false;
+  if (F.grp.size && !F.grp.has(r.group)) return false;
+  if (F.q) {
+    const q = F.q.toLowerCase().replace(/\s+/g, '');
+    if (!r.name.toLowerCase().replace(/\s+/g, '').includes(q) && !r.code.toLowerCase().includes(q)) return false;
+  }
+  return true;
+}
+function syncURL(){
+  const p = new URLSearchParams();
+  if (F.q) p.set('q', F.q);
+  if (F.amc.size) p.set('amc', [...F.amc].join(','));
+  if (F.grp.size) p.set('grp', [...F.grp].join(','));
+  if (sortKey !== 'yield' || sortDir !== 'desc') { p.set('sort', sortKey); p.set('dir', sortDir); }
+  const qs = p.toString();
+  history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+}
+function readURL(){
+  const p = new URLSearchParams(location.search);
+  F.q = p.get('q') || '';
+  F.amc = new Set((p.get('amc') || '').split(',').filter(Boolean));
+  F.grp = new Set((p.get('grp') || '').split(',').filter(Boolean));
+  if (SORT_KEYS.includes(p.get('sort'))) sortKey = p.get('sort');
+  if (['asc','desc'].includes(p.get('dir'))) sortDir = p.get('dir');
+}
+function buildChips(){
+  const count = key => DATA.reduce((m, r) => (m[r[key]] = (m[r[key]] || 0) + 1, m), {});
+  const amcN = count('amc'), grpN = count('group');
+  const amcs = Object.keys(amcN).sort();
+  const grps = CC.GROUPS.filter(g => grpN[g]);
+  const chip = (kind, v, n) => `<button type="button" class="chip" data-kind="${kind}" data-v="${v}" aria-pressed="${F[kind].has(v)}">${v}<span class="n">${n}</span></button>`;
+  document.getElementById('amcChips').insertAdjacentHTML('beforeend', amcs.map(v => chip('amc', v, amcN[v])).join(''));
+  document.getElementById('grpChips').insertAdjacentHTML('beforeend', grps.map(v => chip('grp', v, grpN[v])).join(''));
+  document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+    const set = F[b.dataset.kind], v = b.dataset.v;
+    set.has(v) ? set.delete(v) : set.add(v);
+    b.setAttribute('aria-pressed', set.has(v));
+    render();
+  }));
+  const q = document.getElementById('q');
+  q.value = F.q;
+  q.addEventListener('input', () => { F.q = q.value.trim(); render(); });
+  document.getElementById('reset').addEventListener('click', () => {
+    F.q = ''; F.amc.clear(); F.grp.clear(); q.value = '';
+    document.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    render();
+  });
+}
 
 function fmtNum(n){ return Math.round(n).toLocaleString('ko-KR'); }
 function fmtWon(n){ return fmtNum(n) + '원'; }
@@ -147,7 +235,7 @@ function render(){
     byMonth: Object.fromEntries(r.monthly_divs.map(d => [d.month, d.amount])),
   }));
 
-  const rows = withCalc.sort((a, b) => {
+  const rows = withCalc.filter(matches).sort((a, b) => {
     let av, bv;
     if (sortKey === 'name') { av = a.name; bv = b.name; }
     else if (sortKey === 'price') { av = a.price_at_last_div; bv = b.price_at_last_div; }
@@ -168,7 +256,7 @@ function render(){
     }).join('');
     return `
     <tr>
-      <td>${r.name}</td>
+      <td><a href="simulator.html?code=${encodeURIComponent(r.code)}" title="시뮬레이터에서 짝꿍 ETF와 비교">${r.name}</a>${badgesOf(r)}</td>
       <td>${fmtWon(r.price_at_last_div)}</td>
       <td class="sum-cell">${fmtWon(r.sum6)}</td>
       <td class="yield">${r.ann_yield_pct.toFixed(2)}%</td>
@@ -176,11 +264,28 @@ function render(){
       ${monthCells}
       <td class="grp-start">${sparkline(r.monthly_divs)}</td>
     </tr>`;
-  }).join('');
+  }).join('') || `<tr><td class="empty" colspan="${cols.length}">조건에 맞는 종목이 없습니다.</td></tr>`;
+  document.getElementById('count').textContent = `${rows.length} / ${DATA.length}종 표시`;
+  syncURL();
+}
+function badgesOf(r){
+  const f = flagsOf(r);
+  let b = '';
+  if (f.unpaid.length) b += ` <span class="badge" title="0원 달: ${f.unpaid.join(', ')} (상장 첫 달까지는 제외)">미지급 월 있음</span>`;
+  if (f.decline !== null) b += ` <span class="badge" title="최근 3개월 평균이 이전 3개월보다 ${Math.abs(f.decline).toFixed(0)}% 적음">배당 감소 추세</span>`;
+  return b ? '<br>' + b.trim() : '';
 }
 
-fetch('data.json').then(r => r.json()).then(d => {
-  DATA = d.etfs || [];
+Promise.all([
+  fetch('data.json').then(r => r.json()),
+  fetch('history.json').then(r => r.json()).catch(() => null),   // 없어도 표는 동작(배지 판정만 단순화)
+]).then(([d, h]) => {
+  if (h) for (const [code, x] of Object.entries(h.series)) LISTED[code] = x.m[0];
+  return d;
+}).then(d => {
+  DATA = (d.etfs || []).map(r => ({...r, amc: CC.amcOf(r.name), group: CC.groupOf(r.name)}));
+  readURL();
+  buildChips();
   if (DATA.length) MONTH_COLS = buildMonthCols(modeLastDivMonth(DATA));
   document.getElementById('hdrSub').textContent =
     `${d.generated} 기준 · 월배당 커버드콜 ETF ${DATA.length}종 · ${d.assumptions}`;
