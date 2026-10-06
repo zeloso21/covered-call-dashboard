@@ -8,12 +8,14 @@
 <link rel="stylesheet" href="site.css">
 <style>
 :root{
-  /* 기초자산 그룹 색 (커버드콜 주황·짝꿍 파랑과 겹치지 않는 색으로) */
-  --g-kospi:#4a3aa7; --g-ndx:#1baf7a; --g-spx:#e87ba4; --g-div:#eda100; --g-semi:#008300; --g-bond:#e34948; --g-etc:#8a8f98;
+  /* 기초자산 그룹 색: 커버드콜 주황·짝꿍 보라, 부호용 빨강·파랑과 겹치지 않게 */
+  --g-kospi:#be185d; --g-ndx:#1baf7a; --g-spx:#0891b2; --g-div:#eda100; --g-tech:#a23ba8; --g-semi:#008300;
+  --g-krdiv:#7a8b1f; --g-cn:#5b7c99; --g-gold:#8a6d0b; --g-bond:#8c564b; --g-etc:#8a8f98;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --g-kospi:#9085e9; --g-ndx:#199e70; --g-spx:#d55181; --g-div:#c98500; --g-semi:#2f9e2f; --g-bond:#e66767; --g-etc:#8b93a1;
+    --g-kospi:#ec4899; --g-ndx:#199e70; --g-spx:#22b8d4; --g-div:#c98500; --g-tech:#c77dcc; --g-semi:#2f9e2f;
+    --g-krdiv:#a3b53a; --g-cn:#8fb0cc; --g-gold:#c9a227; --g-bond:#b07a6e; --g-etc:#8b93a1;
   }
 }
 .hdr ol{margin:10px 0 0 18px;font-size:13px;color:rgba(255,255,255,.82);line-height:1.7;}
@@ -186,8 +188,9 @@ const TERMS = {
   '짝꿍':   '<b>짝꿍</b>: 커버드콜과 같은(또는 가장 비슷한) 기초자산을 그대로 따라가는 일반 ETF. 예: TIGER 미국나스닥100커버드콜 ↔ TIGER 미국나스닥100.',
   '등급':   '<b>등급</b>: A = 같은 기초자산 짝꿍, B = 근사 비교(지수 구성이 다름), C = 주식+채권 혼합형이라 공정한 짝꿍 없음(비교 제외).',
 };
-const GROUP_VAR = {'코스피200':'--g-kospi','나스닥100':'--g-ndx','S&P500':'--g-spx','미국배당':'--g-div','반도체':'--g-semi','채권':'--g-bond','기타':'--g-etc'};
-const CARD_GROUPS = ['코스피200','나스닥100','S&P500','미국배당','반도체','채권','기타'];
+const GROUP_VAR = {'코스피200':'--g-kospi','나스닥100':'--g-ndx','S&P500':'--g-spx','미국배당':'--g-div','미국 AI·테크':'--g-tech','반도체':'--g-semi',
+  '국내 고배당·밸류업':'--g-krdiv','중국':'--g-cn','금·원자재':'--g-gold','채권':'--g-bond','기타':'--g-etc'};
+const CARD_GROUPS = CC.GROUPS.filter(g => g !== '혼합형');
 let H, D, ROWS = [], chart = null, hidden = new Set(), lastTap = null;
 let sortKey = 'diff', sortDir = 'desc';
 

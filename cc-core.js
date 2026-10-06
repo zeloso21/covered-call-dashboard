@@ -129,7 +129,7 @@ function regimes(cc, pr){
 
 /* ---------- 분류 (종목명 기준) ---------- */
 // 기초자산 그룹: 종목명 키워드로 분류. 위에서부터 먼저 맞는 규칙 적용.
-const GROUPS = ['코스피200','나스닥100','S&P500','미국배당','반도체','채권','기타','혼합형'];
+const GROUPS = ['코스피200','나스닥100','S&P500','미국배당','미국 AI·테크','반도체','국내 고배당·밸류업','중국','금·원자재','채권','기타','혼합형'];
 function groupOf(name){
   const n = name.replace(/\s+/g,'');
   if(/혼합|밸런스/.test(n)) return '혼합형';
@@ -139,6 +139,10 @@ function groupOf(name){
   if(/S&P500|미국500/.test(n)) return 'S&P500';
   if(/미국배당/.test(n)) return '미국배당';
   if(/^(KODEX|TIGER|PLUS|RISE|SOL|ACE|KIWOOM|FOCUS)200/.test(n)) return '코스피200';
+  if(/미국.*(AI|테크|빅테크|성장)/.test(n)) return '미국 AI·테크';
+  if(/차이나|항셍|중국/.test(n)) return '중국';
+  if(/국제금|골드|금현물|금선물|원유|원자재|은선물/.test(n)) return '금·원자재';   // '금융'과 구분
+  if(/고배당|배당|밸류업/.test(n)) return '국내 고배당·밸류업';                 // 미국배당은 위에서 이미 분류
   return '기타';
 }
 // 운용사(브랜드) = 종목명 첫 단어
