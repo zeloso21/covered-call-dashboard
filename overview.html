@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>커버드콜 ETF 한눈에 보기</title>
+<meta name="description" content="국내 월배당 커버드콜 ETF 전체를 짝꿍 일반 ETF와 비교한 한 장 요약">
+<link rel="stylesheet" href="site.css">
+<style>
+:root{
+  /* 기초자산 그룹 색 (커버드콜 주황·짝꿍 파랑과 겹치지 않는 색으로) */
+  --g-kospi:#4a3aa7; --g-ndx:#1baf7a; --g-spx:#e87ba4; --g-div:#eda100; --g-semi:#008300; --g-bond:#e34948; --g-etc:#8a8f98;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --g-kospi:#9085e9; --g-ndx:#199e70; --g-spx:#d55181; --g-div:#c98500; --g-semi:#2f9e2f; --g-bond:#e66767; --g-etc:#8b93a1;
+  }
+}
+.hdr ol{margin:10px 0 0 18px;font-size:13px;color:rgba(255,255,255,.82);line-height:1.7;}
+.card h2{font-size:16px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;flex-wrap:wrap;gap:2px;}
+.desc{font-size:12.5px;color:var(--muted);margin-bottom:12px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:var(--gap);}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
+.kpi .lbl{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;}
+.kpi .big{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:4px;line-height:1.2;}
+.kpi .big small{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:0;}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;}
+.kpi .reg{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:14px;margin-top:6px;}
+.kpi .reg b{font-size:17px;}
+.legend{display:flex;flex-wrap:wrap;gap:6px 8px;font-size:12px;color:var(--muted);margin:2px 0 8px;}
+.legend button{font:inherit;font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;}
+.legend button[aria-pressed="false"]{opacity:.4;text-decoration:line-through;}
+.legend .sep{width:100%;height:0;}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;}
+.tri{display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid var(--muted);}
+.circ{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);}
+.chartbox{position:relative;height:420px;}
+.pick{font-size:13px;margin-top:8px;min-height:22px;}
+.summary{margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--soft);border-radius:0 8px 8px 0;font-size:13.5px;font-weight:600;}
+.summary p+p{margin-top:6px;font-weight:500;}
+.fn{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7;}
+.fn li{margin-left:16px;}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+.gcard{border:1px solid var(--border);border-radius:var(--r);padding:14px;background:var(--card);border-top:4px solid var(--gc);}
+.gcard h3{font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;}
+.gcard h3 small{font-size:12px;color:var(--muted);font-weight:600;}
+.gcard dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px;margin:8px 0;}
+.gcard dt{color:var(--muted);}
+.gcard dd{text-align:right;font-weight:600;}
+.gcard dt.w{grid-column:1/-1;margin-top:3px;}
+.gcard dd.w{grid-column:1/-1;text-align:left;display:flex;justify-content:space-between;gap:8px;}
+.gcard dd a{color:var(--text);text-decoration:none;border-bottom:1px dotted var(--muted);font-weight:500;}
+.gcard .sp{width:100%;height:64px;display:block;}
+.gcard .splg{font-size:11.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+.lg-line{display:inline-block;width:14px;height:0;border-top:2.5px solid;vertical-align:4px;margin-right:4px;}
+.tbl-wrap{overflow-x:auto;}
+table.rk{width:100%;border-collapse:collapse;font-size:13px;}
+table.rk th,table.rk td{padding:8px 9px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+table.rk th{color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;user-select:none;background:var(--card);position:sticky;top:0;z-index:1;}
+table.rk th.active{color:var(--accent);}
+table.rk th.active::after{content:'';display:inline-block;margin-left:4px;border:4px solid transparent;vertical-align:middle;}
+table.rk th.active.desc::after{border-top-color:var(--accent);}
+table.rk th.active.asc::after{border-bottom-color:var(--accent);}
+table.rk th:first-child,table.rk td:first-child{text-align:left;white-space:normal;min-width:170px;position:sticky;left:0;background:var(--card);box-shadow:2px 0 4px -2px rgba(0,0,0,.12);}
+table.rk th:first-child{z-index:2;}
+table.rk td:first-child a{color:var(--text);text-decoration:none;font-weight:600;}
+table.rk td:first-child a:hover{color:var(--accent);text-decoration:underline;}
+table.rk td.l{text-align:left;}
+table.rk tr.short td{opacity:.5;}
+table.rk tr.short td:first-child{opacity:1;}
+table.rk tr.short td:first-child a{opacity:.55;}
+.who{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.who > div{border:1px solid var(--border);border-radius:var(--r);padding:14px;background:var(--soft);}
+.who h3{font-size:14px;font-weight:700;margin-bottom:6px;}
+.who .pick2{font-size:13px;font-weight:700;margin-bottom:6px;}
+.who .pick2 .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+.who ul{font-size:12.5px;color:var(--muted);margin-left:16px;line-height:1.65;}
+.loading{color:var(--muted);font-size:13px;}
+@media(max-width:900px){ .kpis{grid-template-columns:1fr 1fr;} .who{grid-template-columns:1fr;} }
+@media(max-width:700px){
+  .hdr ol{font-size:12.5px;}
+  .kpis{grid-template-columns:1fr;}
+  .groups{grid-template-columns:1fr;}
+  .chartbox{height:340px;margin:0 -6px;}
+  table.rk th,table.rk td{padding:7px 6px;font-size:12px;}
+  table.rk th:first-child,table.rk td:first-child{min-width:130px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="site-nav" aria-label="페이지"><a class="brand" href="./">커버드콜 ETF</a><div class="tabs"><a href="./">배당 정보표</a><a href="overview.html" aria-current="page">한눈에 보기</a><a href="simulator.html">시뮬레이터</a></div></nav>
+
+  <div class="hdr">
+    <h1>커버드콜 ETF 한눈에 보기</h1>
+    <ol>
+      <li><b>커버드콜이란</b> 주식(지수)을 보유하면서 콜옵션을 팔아 매달 현금(옵션 프리미엄)을 받는 상품입니다.</li>
+      <li>대가로 주가가 크게 오를 때 상승분의 일부를 포기합니다. 분배금 일부는 원금에서 나갈 수 있습니다.</li>
+      <li>아래는 국내 월배당 커버드콜 전 종목을 같은 기초자산의 일반 ETF(짝꿍)와 실제 과거 데이터로 비교한 결과입니다.</li>
+    </ol>
+    <div class="sub" id="hdrSub">불러오는 중…</div>
+  </div>
+
+  <!-- (1) 핵심 숫자 -->
+  <div class="kpis" id="kpis"><div class="kpi loading">불러오는 중…</div></div>
+
+  <!-- (2) 산점도 -->
+  <section class="card" id="scatter">
+    <h2>분배금 vs 총수익 — 많이 나눠 준 만큼 더 벌었나? <span data-term="분배율"></span><span data-term="총수익"></span></h2>
+    <div class="desc" id="scDesc"></div>
+    <div class="legend" id="scLegend"></div>
+    <div class="chartbox"><canvas id="sc" aria-label="커버드콜 종목별 분배율과 짝꿍 대비 총수익 차이 산점도"></canvas></div>
+    <div class="pick" id="scPick">점에 마우스를 올리거나 탭하면 종목 정보가 나옵니다. 클릭(모바일은 같은 점을 한 번 더 탭)하면 시뮬레이터로 이동합니다.</div>
+    <div class="summary" id="scSum"></div>
+    <ul class="fn" id="scFn"></ul>
+  </section>
+
+  <!-- (3) 기초자산 그룹 -->
+  <section class="card" id="groupsSec">
+    <h2>기초자산 그룹별로 보기 <span data-term="짝꿍"></span></h2>
+    <div class="desc" id="gDesc"></div>
+    <div class="groups" id="groups"></div>
+  </section>
+
+  <!-- (4) 순위표 -->
+  <section class="card" id="rankSec">
+    <h2>전체 순위표 <span data-term="등급"></span><span data-term="총수익"></span></h2>
+    <div class="desc">머리글을 누르면 정렬됩니다. 총수익·차이·하락 달은 <b>상장 후 전체 비교기간</b>(두 ETF 데이터가 모두 있는 첫 달 ~ 마지막 달, 분배금 재투자 없음) 기준으로, 시뮬레이터 기본 화면과 같은 숫자입니다. 분배율은 최근 12개월 기준. 비교기간 12개월 미만은 흐리게 표시합니다. 종목명을 누르면 시뮬레이터로 이동합니다.</div>
+    <div class="tbl-wrap"><table class="rk" id="rk"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- (5) 어떤 사람에게 맞나 -->
+  <section class="card" id="whoSec">
+    <h2>어떤 사람에게 맞나</h2>
+    <div class="desc">일반적인 구조상의 특징입니다. 개인 상황(세금, 다른 소득, 투자 기간)에 따라 달라집니다.</div>
+    <div class="who">
+      <div>
+        <h3>매달 생활비가 필요한 사람</h3>
+        <div class="pick2"><i class="sw" style="background:var(--cc)"></i>상대적으로 커버드콜</div>
+        <ul>
+          <li>주식을 팔지 않아도 매달 현금이 들어와 생활비 계획을 세우기 쉽습니다.</li>
+          <li>다만 분배금 일부가 원금에서 나가 평가금액이 줄 수 있으니 원금 추이를 함께 봐야 합니다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>장기 자산 증식이 목표인 사람</h3>
+        <div class="pick2"><i class="sw" style="background:var(--pair)"></i>상대적으로 일반 ETF</div>
+        <ul>
+          <li>상승장에서 오른 만큼 그대로 가져가 복리 효과가 커집니다.</li>
+          <li>커버드콜은 급등 구간의 상승분을 포기하고, 분배금마다 세금이 생겨 장기 성장이 더딜 수 있습니다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>하락장이 불안한 사람</h3>
+        <div class="pick2"><i class="sw" style="background:var(--cc)"></i>상대적으로 커버드콜 (제한적)</div>
+        <ul>
+          <li>옵션 프리미엄이 들어와 하락·횡보 구간에서 손실이 조금 덜한 경향이 있습니다.</li>
+          <li>하지만 하락을 막아 주는 상품은 아니며, 이후 반등장에서는 회복이 더딜 수 있습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="card fn" id="assume" style="margin-top:0">
+    <b>계산 기준</b>
+    <ul>
+      <li>계산 함수는 시뮬레이터(<a href="simulator.html">simulator.html</a>)와 같은 공통 모듈(cc-core.js)을 씁니다: 시작월 월말 종가로 매수, 분배금은 그 달 말 지급(시작월 분배금 제외), 소수 주 허용, 세전, 보수는 종가에 반영된 것으로 간주.</li>
+      <li>마지막 달은 진행 중인 달(최근 종가)입니다. 최근 12개월 지표와 장세 분류는 진행 중인 달을 빼고 계산합니다.</li>
+      <li>기초자산 그룹은 <b>종목명 키워드</b>로 분류했습니다(예: '나스닥'→나스닥100). 실제 보유 종목과 다를 수 있습니다.</li>
+      <li>주식+채권 혼합형(C등급)은 공정한 짝꿍이 없어 비교 지표(산점도·그룹·비율)에서 빼고, 순위표에는 단독 총수익만 표시합니다.</li>
+    </ul>
+    <div id="dataInfo" style="margin-top:6px"></div>
+  </div>
+
+  <div class="disclaimer">과거 실적 기반 시뮬레이션이며 미래 수익을 보장하지 않습니다. 투자 권유가 아닙니다.</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="cc-core.js"></script>
+<script>
+'use strict';
+const {pct, pctp, spp, dpp, cls, esc} = CC;
+const TERMS = {
+  '분배율': '<b>분배율</b>: 최근 12개월 동안 받은 주당 분배금 합 ÷ 12개월 전 종가. 데이터가 12개월보다 짧으면 있는 기간만큼으로 연환산합니다. 배당 정보표의 <b>연배당율</b>(최근 6개월×2 ÷ 최종배당시 주가)과는 정의가 다릅니다.',
+  '총수익': '<b>총수익</b>: (끝 평가금액 + 받은 분배금 − 투자원금) ÷ 투자원금. 가격 변화와 분배금을 합친 값이며, 분배금은 재투자하지 않고 현금으로 모은다고 가정합니다(세전).',
+  '짝꿍':   '<b>짝꿍</b>: 커버드콜과 같은(또는 가장 비슷한) 기초자산을 그대로 따라가는 일반 ETF. 예: TIGER 미국나스닥100커버드콜 ↔ TIGER 미국나스닥100.',
+  '등급':   '<b>등급</b>: A = 같은 기초자산 짝꿍, B = 근사 비교(지수 구성이 다름), C = 주식+채권 혼합형이라 공정한 짝꿍 없음(비교 제외).',
+};
+const GROUP_VAR = {'코스피200':'--g-kospi','나스닥100':'--g-ndx','S&P500':'--g-spx','미국배당':'--g-div','반도체':'--g-semi','채권':'--g-bond','기타':'--g-etc'};
+const CARD_GROUPS = ['코스피200','나스닥100','S&P500','미국배당','반도체','채권','기타'];
+let H, D, ROWS = [], chart = null, hidden = new Set(), lastTap = null;
+let sortKey = 'diff', sortDir = 'desc';
+
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function gcol(g){ return cssVar(GROUP_VAR[g] || '--g-etc'); }
+function mean(a){ return a.length ? a.reduce((s,v)=>s+v,0)/a.length : NaN; }
+function simLink(code){ return 'simulator.html?code=' + encodeURIComponent(code); }
+function gradeBadge(g){ return g==='A' ? '<span class="badge neutral" title="같은 기초자산">A</span>' : g==='B' ? '<span class="badge" title="근사 비교">B 근사</span>' : '<span class="badge" title="혼합형, 짝꿍 없음">C 혼합형</span>'; }
+function initTerms(){
+  document.querySelectorAll('[data-term]').forEach(el => {
+    const t = el.dataset.term;
+    el.outerHTML = `<button type="button" class="q" aria-label="${t} 설명">?<span class="tip" role="tooltip">${TERMS[t]}</span></button>`;
+  });
+}
+
+/* ---------- (1) 핵심 숫자 ---------- */
+function renderKPI(){
+  const cmp = ROWS.filter(r => r.pair);
+  const avgYield = mean(D.etfs.map(e => e.ann_yield_pct));
+  const moreDist = cmp.filter(r => r.ccDist > r.prDist).length;
+  const moreTot = cmp.filter(r => r.ccTot > r.prTot).length;
+  const A = ROWS.filter(r => r.grade === 'A');
+  const pool = {up:{n:0,d:0}, flat:{n:0,d:0}, down:{n:0,d:0}};
+  A.forEach(r => { for(const k in pool){ pool[k].n += r.reg[k].n; pool[k].d += r.reg[k].cc - r.reg[k].pr; } });
+  const pd = k => pool[k].n ? pool[k].d / pool[k].n : NaN;
+  const pr = (n, of) => `${n}<small> / ${of}종 (${Math.round(n/of*100)}%)</small>`;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="lbl">커버드콜 ETF 수 · 평균 연배당율</div>
+      <div class="big">${D.etfs.length}<small>종</small> · ${avgYield.toFixed(1)}<small>%</small></div>
+      <div class="sub">연배당율 = 최종배당월부터 6개월 배당 합 × 2 ÷ 최종배당시 주가 (배당 정보표와 같은 정의, ${D.etfs.length}종 단순 평균)</div></div>
+    <div class="kpi"><div class="lbl">짝꿍보다 <b>&nbsp;받은 분배금&nbsp;</b>이 많은 종목</div>
+      <div class="big">${pr(moreDist, cmp.length)}</div>
+      <div class="sub">상장 후 전체 비교기간, 투자원금 대비 받은 분배금 합 비교 (A·B등급 ${cmp.length}종)</div></div>
+    <div class="kpi"><div class="lbl">짝꿍보다 <b>&nbsp;총수익&nbsp;</b>이 높은 종목</div>
+      <div class="big">${pr(moreTot, cmp.length)}</div>
+      <div class="sub">같은 기간 가격 변화 + 분배금 (재투자 없음, 세전)</div></div>
+    <div class="kpi"><div class="lbl">장세별 월 총수익 차이 (커버드콜 − 짝꿍)</div>
+      <div class="reg">
+        <span>상승 달</span><b class="${cls(pd('up'))}">${spp(pd('up'))}</b>
+        <span>횡보 달</span><b class="${cls(pd('flat'))}">${spp(pd('flat'))}</b>
+        <span>하락 달</span><b class="${cls(pd('down'))}">${spp(pd('down'))}</b>
+      </div>
+      <div class="sub">A등급 ${A.length}쌍의 모든 달을 합쳐 평균(상승 ${pool.up.n}·횡보 ${pool.flat.n}·하락 ${pool.down.n}개 쌍-월). 짝꿍 월 총수익 +3% 초과=상승, −3% 미만=하락.</div></div>`;
+}
+
+/* ---------- (2) 산점도 ---------- */
+function scatterPoints(){ return ROWS.filter(r => r.pair && r.w && isFinite(r.w.diff)); }
+function renderScatter(){
+  const pts = scatterPoints();
+  const groups = CARD_GROUPS.filter(g => pts.some(r => r.group === g));
+  const w0 = pts.find(r => !r.w.short);
+  document.getElementById('scDesc').innerHTML =
+    `점 하나 = 커버드콜 1종목. <b>가로</b> = 연환산 분배율, <b>세로</b> = 같은 기간 짝꿍 대비 총수익 차이(%p, 분배 재투자 없음). 기간은 진행 중인 달을 뺀 최근 12개월(${w0 ? w0.w.start+' 말 매수 → '+w0.w.end+' 말 평가' : ''}). 0선 아래 = 짝꿍보다 총수익이 낮았던 종목.`;
+  // 범례: 그룹 토글 + 모양 설명
+  document.getElementById('scLegend').innerHTML =
+    groups.map(g => `<button type="button" data-g="${g}" aria-pressed="${!hidden.has(g)}"><i class="dot" style="background:${gcol(g)}"></i>${g} (${pts.filter(r=>r.group===g).length})</button>`).join('') +
+    `<span class="sep"></span><span><i class="circ"></i> 12개월 데이터</span><span><i class="tri"></i> 12개월 미만(있는 기간 연환산)</span>`;
+  document.querySelectorAll('#scLegend button').forEach(b => b.onclick = () => {
+    const g = b.dataset.g; hidden.has(g) ? hidden.delete(g) : hidden.add(g); renderScatter();
+  });
+  if(typeof Chart === 'undefined'){ document.getElementById('scPick').textContent = '차트 라이브러리를 불러오지 못했습니다. 아래 순위표를 참고하세요.'; }
+  else {
+    const grid = cssVar('--grid'), muted = cssVar('--muted'), text = cssVar('--text'), card = cssVar('--card');
+    const datasets = groups.filter(g => !hidden.has(g)).map(g => {
+      const rs = pts.filter(r => r.group === g);
+      return {label:g, data: rs.map(r => ({x: r.w.yld*100, y: r.w.diff*100, r})),
+        backgroundColor: gcol(g), borderColor: card, borderWidth: 1.5,
+        pointStyle: rs.map(r => r.w.short ? 'triangle' : 'circle'),
+        pointRadius: rs.map(r => r.w.short ? 7 : 6), pointHoverRadius: 9, pointHitRadius: 10};
+    });
+    if(chart) chart.destroy();
+    chart = new Chart(document.getElementById('sc'), {type:'scatter', data:{datasets},
+      options:{responsive:true, maintainAspectRatio:false, animation:false,
+        plugins:{legend:{display:false},
+          tooltip:{callbacks:{
+            title: items => items[0].raw.r.name,
+            label: c => { const r = c.raw.r; return [` ${r.group} · ${r.grade}등급${r.w.short ? ' · '+r.w.k+'개월(연환산)' : ''}`,
+              ` 분배율 ${r.w.yld*100 >= 0 ? '' : ''}${(r.w.yld*100).toFixed(1)}%`,
+              ` 총수익 ${pct(r.w.ccTot)} vs 짝꿍 ${pct(r.w.prTot)} → ${spp(r.w.diff)}`]; }}}},
+        scales:{
+          x:{title:{display:true, text:'연환산 분배율 (%)', color:muted}, grid:{color:grid}, ticks:{color:muted, callback:v=>v+'%'}, border:{display:false}},
+          y:{title:{display:true, text:'짝꿍 대비 총수익 차이 (%p)', color:muted}, ticks:{color:muted, callback:v=>(v>0?'+':'')+v+'%p'}, border:{display:false},
+             grid:{color: c => c.tick.value === 0 ? text : grid, lineWidth: c => c.tick.value === 0 ? 1.5 : 1}}},
+        onClick:(ev, els) => {
+          if(!els.length) return;
+          const r = chart.data.datasets[els[0].datasetIndex].data[els[0].index].r;
+          const mouse = ev.native && ev.native.pointerType === 'mouse';
+          if(mouse || lastTap === r.code){ location.href = simLink(r.code); return; }
+          lastTap = r.code;
+          document.getElementById('scPick').innerHTML = `<b>${esc(r.name)}</b> — 분배율 ${(r.w.yld*100).toFixed(1)}%, 짝꿍 대비 ${spp(r.w.diff)} · <a href="${simLink(r.code)}">시뮬레이터에서 보기 →</a> (한 번 더 탭해도 이동)`;
+        }}});
+  }
+  // 해석 문장 (보이는 점 전체 기준, 그룹 토글과 무관하게 전체로 계산)
+  const xs = pts.map(r => r.w.yld), ys = pts.map(r => r.w.diff);
+  const r = CC.pearson(xs, ys), full = pts.filter(p => !p.w.short), rf = CC.pearson(full.map(p=>p.w.yld), full.map(p=>p.w.diff));
+  const below = pts.filter(p => p.w.diff < 0).length;
+  const rs = v => (v<0?'−':'') + Math.abs(v).toFixed(2);
+  let s;
+  if(!isFinite(r)) s = '점이 너무 적어 경향을 말하기 어렵습니다.';
+  else if(r <= -0.5) s = `분배를 많이 준 종목일수록 총수익은 짝꿍보다 뒤처지는 경향이 뚜렷합니다(상관계수 r=${rs(r)}, ${pts.length}종목).`;
+  else if(r <= -0.2) s = `분배를 많이 준 종목일수록 총수익은 짝꿍보다 뒤처지는 경향이 약하게 보입니다(상관계수 r=${rs(r)}, ${pts.length}종목).`;
+  else if(r < 0.2) s = `분배율과 짝꿍 대비 총수익 차이 사이에 뚜렷한 관계는 보이지 않습니다(상관계수 r=${rs(r)}, ${pts.length}종목).`;
+  else s = `이 기간에는 분배를 많이 준 종목일수록 짝꿍 대비 총수익이 오히려 나은 경향이었습니다(상관계수 r=${rs(r)}, ${pts.length}종목).`;
+  const s2 = `${pts.length}종목 중 ${below}종목(${Math.round(below/pts.length*100)}%)이 0선 아래, 즉 최근 12개월 총수익이 짝꿍보다 낮았습니다.` +
+    (isFinite(rf) && full.length !== pts.length ? ` 12개월 데이터가 다 있는 ${full.length}종목만 보면 r=${rs(rf)}.` : '') +
+    ' 상관관계는 인과를 뜻하지 않으며, 한 해의 장세에 크게 좌우됩니다.';
+  document.getElementById('scSum').innerHTML = `<p>${esc(s)}</p><p>${esc(s2)}</p>`;
+  const cN = ROWS.filter(r => !r.pair).length;
+  document.getElementById('scFn').innerHTML =
+    `<li>제외: 주식+채권 혼합형(C등급) ${cN}종 — 공정한 짝꿍이 없어 비교하지 않습니다. B등급(근사 비교)은 포함합니다.</li>
+     <li>분배율 = 기간 중 주당 분배금 합 ÷ 시작월 말 종가 × (12 ÷ 개월 수). 세로축 = 같은 기간 커버드콜 총수익 − 짝꿍 총수익(각각 소수 1자리로 반올림한 뒤 차이).</li>
+     <li>▲ 표시 종목은 데이터가 12개월보다 짧아 있는 기간(${pts.filter(p=>p.w.short).map(p=>p.w.k).sort((a,b)=>a-b).filter((v,i,a)=>a.indexOf(v)===i).join('·')}개월)으로 계산했습니다. 세로축 차이는 연환산하지 않은 그 기간 값입니다.</li>`;
+}
+
+/* ---------- (3) 그룹 카드 ---------- */
+function spark(cc, pr){
+  const W = 300, Hh = 64, all = cc.concat(pr, [0]);
+  const lo = Math.min(...all), hi = Math.max(...all), sp = (hi - lo) || 1;
+  const X = i => (i / (cc.length - 1)) * (W - 4) + 2, Y = v => Hh - 4 - (v - lo) / sp * (Hh - 8);
+  const line = (a, c) => `<polyline fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" points="${a.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}"/>`;
+  return `<svg class="sp" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" role="img" aria-label="누적 총수익 추이">
+    <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="${cssVar('--grid')}" stroke-width="1" stroke-dasharray="3 3"/>
+    ${line(pr, cssVar('--pair'))}${line(cc, cssVar('--cc'))}</svg>`;
+}
+function renderGroups(){
+  const cmp = ROWS.filter(r => r.pair && r.w);
+  const w0 = cmp.find(r => !r.w.short);
+  document.getElementById('gDesc').innerHTML = `종목명 키워드로 묶었습니다(A·B등급). 분배율·총수익 차이·스파크라인은 산점도와 같은 최근 12개월(${w0 ? w0.w.start+'→'+w0.w.end : ''}) 기준이며, 스파크라인은 12개월 데이터가 다 있는 종목만 같은 시작월로 평균했습니다.`;
+  document.getElementById('groups').innerHTML = CARD_GROUPS.map(g => {
+    const ms = cmp.filter(r => r.group === g);
+    if(!ms.length) return '';
+    const pairs = {}; ms.forEach(r => pairs[r.pairName] = (pairs[r.pairName]||0) + 1);
+    const topPair = Object.entries(pairs).sort((a,b)=>b[1]-a[1])[0];
+    const bestDist = ms.slice().sort((a,b)=>b.w.yld-a.w.yld)[0];
+    const bestTot = ms.slice().sort((a,b)=>b.w.ccTot-a.w.ccTot)[0];
+    const avgDiff = mean(ms.map(r=>r.w.diff)), avgY = mean(ms.map(r=>r.w.yld));
+    const full = ms.filter(r => !r.w.short);
+    let sp = '<div class="fn">12개월 데이터가 다 있는 종목이 없어 추이를 생략합니다.</div>';
+    if(full.length){
+      const n = full[0].w.ccPath.length;
+      const ccP = Array.from({length:n}, (_,i) => mean(full.map(r=>r.w.ccPath[i])));
+      const prP = Array.from({length:n}, (_,i) => mean(full.map(r=>r.w.prPath[i])));
+      sp = spark(ccP, prP) + `<div class="splg"><span><i class="lg-line" style="border-color:${cssVar('--cc')}"></i>커버드콜 평균 ${pct(ccP[n-1])}</span><span><i class="lg-line" style="border-color:${cssVar('--pair')}"></i>짝꿍 평균 ${pct(prP[n-1])}</span><span>${full.length}종목, 누적 총수익</span></div>`;
+    }
+    const lk = r => `<a href="${simLink(r.code)}" title="${esc(r.name)}">${esc(r.name)}</a>`;
+    return `<div class="gcard" style="--gc:${gcol(g)}">
+      <h3>${g} <small>${ms.length}종목</small></h3>
+      <dl>
+        <dt>평균 분배율</dt><dd>${(avgY*100).toFixed(1)}%</dd>
+        <dt>짝꿍 대비 총수익 차이 평균</dt><dd class="${cls(avgDiff)}">${spp(avgDiff)}</dd>
+        <dt>대표 짝꿍</dt><dd>${esc(topPair[0])}${Object.keys(pairs).length>1?` 외 ${Object.keys(pairs).length-1}`:''}</dd>
+        <dt class="w">분배율 최고</dt><dd class="w">${lk(bestDist)}<span>${(bestDist.w.yld*100).toFixed(1)}%</span></dd>
+        <dt class="w">총수익 최고 (12개월)</dt><dd class="w">${lk(bestTot)}<span class="${cls(bestTot.w.ccTot)}">${pct(bestTot.w.ccTot)}</span></dd>
+      </dl>${sp}</div>`;
+  }).join('');
+}
+
+/* ---------- (4) 순위표 ---------- */
+const COLS = [
+  {k:'name', l:'종목', dir:'asc', v:r=>r.name},
+  {k:'group', l:'기초자산', dir:'asc', v:r=>r.group},
+  {k:'grade', l:'등급', dir:'asc', v:r=>r.grade},
+  {k:'N', l:'비교기간', dir:'desc', v:r=>r.N},
+  {k:'yld', l:'분배율(12개월)', dir:'desc', v:r=>r.w ? r.w.yld : NaN},
+  {k:'ccTot', l:'커버드콜 총수익', dir:'desc', v:r=>r.ccTot},
+  {k:'prTot', l:'짝꿍 총수익', dir:'desc', v:r=>r.pair ? r.prTot : NaN},
+  {k:'diff', l:'차이', dir:'desc', v:r=>r.pair ? r.diff : NaN},
+  {k:'down', l:'하락 달 성적 차이', dir:'desc', v:r=>r.pair ? r.downDiff : NaN},
+];
+function renderRank(){
+  const col = COLS.find(c => c.k === sortKey);
+  const rows = ROWS.slice().sort((a,b) => {
+    const av = col.v(a), bv = col.v(b);
+    const an = typeof av === 'number' && !isFinite(av), bn = typeof bv === 'number' && !isFinite(bv);
+    if(an || bn) return an - bn;                 // 값 없는 행은 항상 아래
+    const c = typeof av === 'string' ? av.localeCompare(bv, 'ko') : av - bv;
+    return sortDir === 'asc' ? c : -c;
+  });
+  const th = document.querySelector('#rk thead');
+  th.innerHTML = '<tr>' + COLS.map(c => `<th data-k="${c.k}" class="${c.k===sortKey?'active '+sortDir:''}">${c.l}</th>`).join('') + '</tr>';
+  th.querySelectorAll('th').forEach(t => t.onclick = () => {
+    const c = COLS.find(x => x.k === t.dataset.k);
+    if(sortKey === c.k) sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortKey = c.k; sortDir = c.dir; }
+    renderRank();
+  });
+  const tdp = v => isFinite(v) ? `<td class="${cls(v)}">${pct(v)}</td>` : '<td>-</td>';
+  document.querySelector('#rk tbody').innerHTML = rows.map(r => {
+    const short = r.N < 12;
+    const down = r.pair && r.reg.down.n ? `<td class="${cls(r.downDiff)}" title="하락 달 ${r.reg.down.n}개월 평균">${spp(r.downDiff)} <small style="color:var(--muted)">(${r.reg.down.n}달)</small></td>` : '<td>-</td>';
+    return `<tr class="${short?'short':''}" data-code="${r.code}">
+      <td><a href="${simLink(r.code)}">${esc(r.name)}</a>${short?' <span class="badge">기간 짧음</span>':''}</td>
+      <td class="l">${r.group}</td>
+      <td class="l">${gradeBadge(r.grade)}</td>
+      <td title="${r.start} ~ ${r.end}">${r.N}개월</td>
+      <td>${r.w ? (r.w.yld*100).toFixed(1)+'%' + (r.w.short?'*':'') : '-'}</td>
+      ${tdp(r.ccTot)}
+      ${r.pair ? tdp(r.prTot) : '<td title="공정한 비교 대상 없음">짝 없음</td>'}
+      ${r.pair ? `<td class="${cls(r.diff)}"><b>${spp(r.diff)}</b></td>` : '<td>-</td>'}
+      ${down}</tr>`;
+  }).join('');
+}
+
+function renderAll(){ renderKPI(); renderScatter(); renderGroups(); renderRank(); }
+
+Promise.all([fetch('history.json').then(r=>r.json()), fetch('data.json').then(r=>r.json())]).then(([h, d]) => {
+  H = h; D = d;
+  ROWS = CC.computeAll(H);
+  initTerms();
+  const L = ROWS[0] ? ROWS[0].end : '';
+  document.getElementById('hdrSub').textContent = `데이터: 배당 ${d.generated} 기준 · 월별 종가·분배금 ${h.generated} 기준(마지막 달 ${L}은 진행 중) · 커버드콜 ${h.pairs.length}종, 짝꿍 일반 ETF ${new Set(h.pairs.map(p=>p.pair).filter(Boolean)).size}종`;
+  renderAll();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+  window.OV = {ROWS};   // 검증용
+}).catch(err => {
+  document.getElementById('hdrSub').textContent = '데이터를 불러오지 못했습니다.';
+  console.warn(err);
+});
+</script>
+</body>
+</html>
