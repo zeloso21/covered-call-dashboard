@@ -26,7 +26,7 @@
   }
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;padding-bottom:64px;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;}
 .wrap{max-width:1080px;margin:0 auto;padding:var(--gap);}
 a{color:var(--accent);}
 .hdr{background:var(--header);color:#fff;border-radius:var(--r);padding:20px 24px;margin-bottom:var(--gap);}
@@ -78,7 +78,7 @@ table.res thead th{font-size:12px;color:var(--muted);font-weight:600;}
 .fn li{margin-left:16px;}
 .inline-ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:13px;margin-bottom:8px;}
 .inline-ctl input{width:110px;font:inherit;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);}
-.disclaimer{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--header);color:#fff;font-size:12px;text-align:center;padding:9px 12px;line-height:1.4;}
+.disclaimer{background:var(--header);color:#fff;font-size:12.5px;font-weight:600;text-align:center;padding:12px 16px;line-height:1.5;border-radius:var(--r);margin-bottom:var(--gap);}
 #printSum{display:none;}
 @media(max-width:700px){
   .wrap{padding:10px;} .hdr{padding:14px 16px;} .card{padding:14px 12px;}
@@ -257,10 +257,10 @@ table.res thead th{font-size:12px;color:var(--muted);font-weight:600;}
     <div id="dataInfo" style="margin-top:6px"></div>
   </div>
 
+  <div class="disclaimer">과거 실적 기반 시뮬레이션이며 미래 수익을 보장하지 않습니다. 투자 권유가 아닙니다.</div>
+
   <div id="printSum"></div>
 </div>
-
-<div class="disclaimer">과거 실적 기반 시뮬레이션이며 미래 수익을 보장하지 않습니다. 투자 권유가 아닙니다.</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <script>
@@ -498,7 +498,13 @@ function render(){
     t1 += `커버드콜은 분배금 ${fmtKRW(L1c.divSum)}을 받았고, 평가금액은 ${pct(L1c.priceRet)}, 총수익은 ${pct(L1c.totalRet)}입니다.`;
   }
   const depRet = depEnd/state.a-1;
-  let t1d = `같은 기간 예금 ${state.r}%(세전)는 ${pct(depRet)}로, 커버드콜보다 ${L1c.totalRet>=depRet?'낮았':'높았'}습니다` + (pr ? `(일반 ETF보다는 ${L1p.totalRet>=depRet?'낮음':'높음'}).` : '.');
+  // 예금 vs 커버드콜·일반 ETF 를 한 문장으로 (보이는 소수 1자리 기준 비교)
+  const vs = r => { const d = dpp(depRet, r); return d < 0 ? '낮았' : d > 0 ? '높았' : '같았'; };
+  const ccT = `커버드콜(${pct(L1c.totalRet)})`, prT = pr ? `일반 ETF(${pct(L1p.totalRet)})` : '';
+  let t1d = `같은 기간 예금 ${state.r}%(세전)는 ${pct(depRet)}로, `;
+  if(!pr) t1d += `${ccT}보다 ${vs(L1c.totalRet)}습니다.`;
+  else if(vs(L1c.totalRet) === vs(L1p.totalRet)) t1d += `${ccT}과 ${prT} 모두보다 ${vs(L1c.totalRet)}습니다.`.replace('모두보다 같았', '모두와 같았');
+  else t1d += `${ccT}보다는 ${vs(L1c.totalRet).replace('았','고')} ${prT}보다는 ${vs(L1p.totalRet)}습니다.`;
   document.getElementById('sum1').innerHTML = `<p>${esc(t1)}</p><p>${esc(t1d)}</p>`;
   out.L1c=L1c; out.L1p=L1p; out.depEnd=depEnd; out.sum1=[t1,t1d];
 
